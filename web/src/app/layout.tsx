@@ -5,6 +5,9 @@ import { AuthProvider } from '@/context/AuthContext'
 export const metadata: Metadata = {
   title: 'Tree Census Portal',
   description: 'Field data collection, analysis, and reporting for tree census programs.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
