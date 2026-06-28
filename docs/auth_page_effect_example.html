@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse - Interface Core</title>
+    <style>
+        :root {
+            --bg: #07070b;
+            --panel: #0d0d14;
+            --text: #f4f1ea;
+            --muted: #a9a3b5;
+            --coral: #ff6a55;
+            --violet: #8b5cf6;
+            --amber: #f5b85b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        /* WebGL / Canvas Background placeholder structural styling */
+        .background-virtualizer {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(20, 20, 35, 0.4) 0%, transparent 70%);
+        }
+
+        /* Hero Layout Container */
+        /* 1. The container now adapts beautifully to smaller screens */
+        .content-layer {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            /* Max width handles the upscaled size on large screens */
+            max-width: 1400px; 
+            padding: 20px;
+            pointer-events: none;
+        }
+
+        /* 2. Remove 'transform: scale(1.7)' here to prevent clipping bugs */
+        .vector-headline-svg {
+            width: 100%;
+            /* clamp() forces it to be smaller on laptops, but scale up by 70% on desktops */
+            max-width: clamp(600px, 85vw, 1550px); 
+            height: auto;
+            overflow: visible;
+            filter: drop-shadow(0px 15px 45px rgba(0,0,0,0.7));
+            margin-bottom: 3.5rem;
+        }
+
+        /* Top Pill Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 16px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            margin-bottom: 2rem;
+            transform: translateZ(20px);
+        }
+        .badge span {
+            color: var(--coral);
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid rgba(255, 106, 85, 0.3);
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 106, 85, 0.05);
+        }
+
+
+
+        /* Text Element Overrides within SVG */
+        .vector-text-base {
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            letter-spacing: -0.03em;
+        }
+
+        /* Control Button Group Row */
+        .btn-group {
+            display: flex;
+            gap: 16px;
+            pointer-events: auto;
+            transform: translateZ(30px);
+        }
+        .btn {
+            padding: 16px 32px;
+            font-size: 15px;
+            font-weight: 500;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            text-decoration: none;
+            letter-spacing: 0.02em;
+        }
+        .btn-primary {
+            background: rgba(9, 9, 14, 0.85);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: rgba(139, 92, 246, 0.15) 0px 20px 40px -15px;
+        }
+        .btn-primary:hover {
+            border-color: rgba(255, 106, 85, 0.4);
+            box-shadow: rgba(255, 106, 85, 0.25) 0px 20px 40px -10px;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--muted);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="background-virtualizer" id="canvas-target"></div>
+
+    <div class="content-layer">
+        <div class="badge"><span>Core</span> Released v3.0 Build</div>
+        
+        <!-- Native Vector Geometry Vector Mask Structure -->
+        <svg class="vector-headline-svg" viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <!-- Base Color Layout Map Scheme -->
+                <linearGradient id="baseTextGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#f4f1ea" />
+                    <stop offset="30%" stop-color="#ff9485" />
+                    <stop offset="55%" stop-color="#ff6a55" />
+                    <stop offset="80%" stop-color="#8b5cf6" />
+                    <stop offset="100%" stop-color="#b4b0e1" />
+                </linearGradient>
+
+                <!-- Energy Wave Light Strike Linear Map -->
+                <linearGradient id="energyWaveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ff6a55" stop-opacity="0" />
+                    <stop offset="25%" stop-color="#ff9485" stop-opacity="0.4" />
+                    <stop offset="50%" stop-color="#ffffff" stop-opacity="1" />
+                    <stop offset="75%" stop-color="#8b5cf6" stop-opacity="0.4" />
+                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+                </linearGradient>
+
+                <!-- Vector Mask Component Definition -->
+                <mask id="lightningMask">
+                    <!-- Dynamic vector geometric path representing the physical lightning width shape band -->
+                    <path id="vectorWaveBand" d="M -200,-50 L -100,-50 L 0,270 L -100,270 Z" fill="url(#energyWaveGradient)" />
+                </mask>
+            </defs>
+
+            <!-- Layer 1: Uniform Gradient Core Text System -->
+            <g class="vector-text-base" font-size="76" fill="url(#baseTextGradient)">
+                <text x="50%" y="80" text-anchor="middle">Shape the future</text>
+                <text x="50%" y="175" text-anchor="middle">of your interface.</text>
+            </g>
+
+            <!-- Layer 2: Vector Geometry Wave Overlay Shell using the Masking Engine -->
+            <g mask="url(#lightningMask)">
+                <g class="vector-text-base" font-size="76" fill="#ffffff">
+                    <text x="50%" y="80" text-anchor="middle">Shape the future</text>
+                    <text x="50%" y="175" text-anchor="middle">of your interface.</text>
+                </g>
+            </g>
+        </svg>
+
+        <div class="btn-group">
+            <a class="btn btn-primary" href="#">Start building</a>
+            <a class="btn btn-secondary" href="#">View documentation</a>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- High Performance Precision Loop Animation Engine ---
+        const waveBand = document.getElementById('vectorWaveBand');
+        
+        let startX = -350;       // Starting X position off-canvas left
+        let endX = 1150;        // Ending X position off-canvas right
+        let currentX = startX;
+        let speed = 4.5;        // Pixel coordinate advancement delta per step frame
+        let waveWidth = 140;    // Geometric breadth thickness of the localized lighting band
+        let skewOffset = 120;   // Angular coordinates variance to project realistic spatial strike slanting
+
+        function smoothAutoLoopEngine() {
+            // Increment progress position linearly across standard display matrix
+            currentX += speed;
+
+            // Strict evaluation logic boundary handling automatic fluid loop
+            if (currentX > endX) {
+                currentX = startX;
+            }
+
+            // Calculate precise mathematical geometry vertices mapping coordinates tracking arrays
+            const xTopLeft = currentX;
+            const xTopRight = currentX + waveWidth;
+            const xBottomRight = currentX + waveWidth - skewOffset;
+            const xBottomLeft = currentX - skewOffset;
+
+            // Generate spatial SVG multi-point attribute command string arrays strings dynamically
+            const newPathData = `M ${xBottomLeft},270 L ${xTopLeft},-50 L ${xTopRight},-50 L ${xBottomRight},270 Z`;
+            
+            // Apply coordinates transforms arrays frames updates directly to layout parameters hooks
+            waveBand.setAttribute('d', newPathData);
+
+            requestAnimationFrame(smoothAutoLoopEngine);
+        }
+
+        // Initialize the tracking loop engine
+        requestAnimationFrame(smoothAutoLoopEngine);
+
+
+        // --- Parallax Pointer Drift System ---
+        let targetMouseX = 0;
+        let targetMouseY = 0;
+        let currentMouseX = 0;
+        let currentMouseY = 0;
+        const interpolationFactor = 0.06;
+        const contentLayer = document.querySelector('.content-layer');
+
+        window.addEventListener('mousemove', (e) => {
+            targetMouseX = (e.clientX / window.innerWidth - 0.5) * 35; // Degrees rotation bounds limit
+            targetMouseY = (e.clientY / window.innerHeight - 0.5) * -35;
+        });
+
+        function renderMouseParallax() {
+            // Standard linear interpolation mapping for micro frame transformations updates
+            currentMouseX += (targetMouseX - currentMouseX) * interpolationFactor;
+            currentMouseY += (targetMouseY - currentMouseY) * interpolationFactor;
+
+            contentLayer.style.transform = `rotateY(${currentMouseX}deg) rotateX(${currentMouseY}deg)`;
+            
+            requestAnimationFrame(renderMouseParallax);
+        }
+        requestAnimationFrame(renderMouseParallax);
+    </script>
+</body>
+</html>

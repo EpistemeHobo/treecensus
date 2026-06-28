@@ -1,0 +1,62 @@
+# Fly.io configuration for Tree Census Portal
+# Deploy with: fly deploy  (from the web/ directory)
+# First-time setup: fly launch --no-deploy  then  fly deploy
+
+app = "treecensus-portal"   # change this to your Fly app name
+primary_region = "sin"      # Singapore — change to nearest region if needed
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV        = "production"
+  PORT            = "3000"
+  BIGQUERY_DATASET = "tree_census"
+  NEXT_PUBLIC_APP_NAME    = "Tree Census Portal"
+  NEXT_PUBLIC_APP_VERSION = "0.1.0"
+
+# Secrets — set these with:
+#   fly secrets set JWT_SECRET="..."
+#   fly secrets set GCP_PROJECT_ID="..."
+#   fly secrets set GOOGLE_APPLICATION_CREDENTIALS_JSON="..."
+#   fly secrets set ZOHO_WEBHOOK_SECRET="..."
+#   fly secrets set ZOHO_FORM_API_URL="..."
+#   fly secrets set ZOHO_CLIENT_ID="..."
+#   fly secrets set ZOHO_CLIENT_SECRET="..."
+#   fly secrets set ZOHO_REFRESH_TOKEN="..."
+#   fly secrets set GCS_RAW_BUCKET="..."
+
+[[services]]
+  internal_port = 3000
+  protocol      = "tcp"
+  auto_stop_machines  = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+  [[services.http_checks]]
+    interval       = 10000
+    timeout        = 5000
+    grace_period   = "10s"
+    method         = "GET"
+    path           = "/login"
+    protocol       = "http"
+    restart_limit  = 3
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

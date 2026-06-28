@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fredericka+the+Great&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Light mode (default) ─────────────────────────────────────────────────── */
+:root {
+  --c-bg:      #F7F8F6;
+  --c-surface: #FCFDF9;
+  --c-panel:   #FFFFFF;
+  --c-text:    #0D0D14;
+  --c-muted:   #6B6575;
+  --c-dim:     rgba(0, 0, 0, 0.09);
+  --c-ghost:   rgba(0, 0, 0, 0.04);
+  --c-coral:   #A8CC3A;
+  --c-violet:  #C4956A;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+.dark {
+  --c-bg:      #09090E;
+  --c-surface: #0A0A10;
+  --c-panel:   #0d0d14;
+  --c-text:    #F4F1EA;
+  --c-muted:   #A9A3B5;
+  --c-dim:     rgba(255, 255, 255, 0.08);
+  --c-ghost:   rgba(255, 255, 255, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-dim); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.3); }
+
+::selection { background: rgba(255, 106, 85, 0.25); color: var(--c-text); }
