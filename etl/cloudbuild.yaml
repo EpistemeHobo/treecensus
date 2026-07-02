@@ -8,7 +8,7 @@
 
 substitutions:
   _SERVICE: treecensus-etl
-  _REGION: us-central1
+  _REGION: asia-southeast3
   _DATASET: tree_census
   # Image tag. Defaults to "latest" for manual submits; Cloud Build triggers
   # can pass --substitutions=_TAG=$SHORT_SHA to tag by commit.
