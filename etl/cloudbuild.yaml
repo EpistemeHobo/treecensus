@@ -3,22 +3,25 @@
 # From repo root:
 #   gcloud builds submit --config etl/cloudbuild.yaml etl
 #
-# Substitutions can be overridden at submit time:
-#   --substitutions=_REGION=us-central1,_DATASET=tree_census
+# Optional: override defaults at submit time:
+#   --substitutions=_REGION=us-central1,_DATASET=tree_census,_TAG=v0.1.0
 
 substitutions:
   _SERVICE: treecensus-etl
   _REGION: us-central1
   _DATASET: tree_census
+  # Image tag. Defaults to "latest" for manual submits; Cloud Build triggers
+  # can pass --substitutions=_TAG=$SHORT_SHA to tag by commit.
+  _TAG: latest
 
 steps:
   - name: gcr.io/cloud-builders/docker
     id: build
-    args: ["build", "-t", "gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA", "."]
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/$_SERVICE:$_TAG", "."]
 
   - name: gcr.io/cloud-builders/docker
     id: push
-    args: ["push", "gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA"]
+    args: ["push", "gcr.io/$PROJECT_ID/$_SERVICE:$_TAG"]
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     id: deploy
@@ -27,7 +30,7 @@ steps:
       - run
       - deploy
       - $_SERVICE
-      - --image=gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA
+      - --image=gcr.io/$PROJECT_ID/$_SERVICE:$_TAG
       - --region=$_REGION
       - --platform=managed
       - --no-allow-unauthenticated
@@ -36,7 +39,7 @@ steps:
       # - --set-secrets=ZOHO_WEBHOOK_SECRET=zoho-webhook-secret:latest,ZOHO_OAUTH_CLIENT_ID=zoho-oauth-client-id:latest,ZOHO_OAUTH_CLIENT_SECRET=zoho-oauth-client-secret:latest,ZOHO_OAUTH_REFRESH_TOKEN=zoho-oauth-refresh-token:latest
 
 images:
-  - gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA
+  - gcr.io/$PROJECT_ID/$_SERVICE:$_TAG
 
 options:
   logging: CLOUD_LOGGING_ONLY
