@@ -2,7 +2,7 @@
 -- Treecensus BigQuery schema — one-shot script for BigQuery Studio
 --
 -- HOW TO USE
--- 1. Replace YOUR_PROJECT_ID below with your GCP project id.
+-- 1. Replace seea-2026 below with your GCP project id.
 -- 2. (Optional) Replace tree_census with a different dataset name.
 -- 3. Paste the whole file into BigQuery Studio and hit Run.
 --
@@ -11,7 +11,7 @@
 -- ==============================================================
 
 -- Create the dataset if it doesn't exist.
-CREATE SCHEMA IF NOT EXISTS `YOUR_PROJECT_ID.tree_census`;
+CREATE SCHEMA IF NOT EXISTS `seea-2026.tree_census`;
 -- Dataset region defaults to the region of the current BigQuery query editor.
 -- To create it in a specific region, change your editor location in
 -- Query Settings → Additional settings → Data location, then re-run.
@@ -20,7 +20,7 @@ CREATE SCHEMA IF NOT EXISTS `YOUR_PROJECT_ID.tree_census`;
 -- ─── 01_raw_import_batch.sql ─────────────────────────────────────────
 -- One row per ingest batch. Sources: zoho_webhook, zoho_poll, csv_form,
 -- excel_batch1, excel_rar_2_1, seed_backfill.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.raw_import_batch` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.raw_import_batch` (
   id          STRING    NOT NULL,
   source      STRING    NOT NULL,
   imported_at TIMESTAMP NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.raw_import_batch` (
 -- backfill) writes here. `payload` is the source JSON (or JSON-encoded row).
 -- Downstream transforms MERGE into dim/fact tables using external_id as the
 -- stable identifier.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.raw_form_rows` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.raw_form_rows` (
   id              STRING    NOT NULL,
   import_batch_id STRING    NOT NULL,
   source          STRING    NOT NULL, -- must match raw_import_batch.source
@@ -48,7 +48,7 @@ PARTITION BY DATE(received_at)
 CLUSTER BY source, external_id;
 
 -- ─── 03_dim_project.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_project` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_project` (
   id             STRING NOT NULL,
   project_no_raw STRING,
   project_no_int INT64,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_project` (
 );
 
 -- ─── 04_dim_plot.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_plot` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_plot` (
   id             STRING NOT NULL,
   project_id     STRING NOT NULL,
   plot_no_raw    STRING,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_plot` (
 );
 
 -- ─── 05_dim_subplot.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_subplot` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_subplot` (
   id            STRING NOT NULL,
   plot_id       STRING NOT NULL,
   subplot_raw   STRING,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_subplot` (
 );
 
 -- ─── 06_dim_species.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_species` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_species` (
   id                      STRING NOT NULL,
   species_code            STRING,
   thai_name               STRING,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_species` (
 -- ─── 07_dim_species_crosswalk.sql ─────────────────────────────────────────
 -- Reference table loaded from รายชื่อพันธุ์ไม้-2026-2.xlsx once, then joined at
 -- transform time to enrich raw species text.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_species_crosswalk` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_species_crosswalk` (
   source_code             STRING,
   thai_name               STRING,
   scientific_name         STRING,
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_species_crosswalk` (
 -- ─── 08_dim_codebook.sql ─────────────────────────────────────────
 -- Categorical vocabulary: size_class, stand_fall, live_dead, gbh_method,
 -- height_method, crown_class, crown_condition, tree_health, large_woody_condition.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_codebook` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.dim_codebook` (
   category  STRING NOT NULL,
   raw       STRING,
   code      STRING NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.dim_codebook` (
 -- ─── 09_fact_submission.sql ─────────────────────────────────────────
 -- One row per form submission. Links to project/plot/subplot/species. All
 -- observation tables (obs_tree, obs_seedling, obs_woody_debris) reference this.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.fact_submission` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.fact_submission` (
   id                  STRING    NOT NULL,
   import_batch_id     STRING    NOT NULL,
   source              STRING    NOT NULL,
@@ -162,7 +162,7 @@ PARTITION BY DATE(ingested_at)
 CLUSTER BY project_id, plot_id, subplot_id;
 
 -- ─── 10_obs_tree.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_tree` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.obs_tree` (
   id              STRING NOT NULL,
   submission_id   STRING NOT NULL,
   import_batch_id STRING NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_tree` (
 
 -- ─── 11_obs_tree_stem.sql ─────────────────────────────────────────
 -- Stems are linked to the nearest preceding tree in the same submission.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_tree_stem` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.obs_tree_stem` (
   id                     STRING NOT NULL,
   tree_id                STRING NOT NULL,
   submission_id          STRING NOT NULL,
@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_tree_stem` (
 );
 
 -- ─── 12_obs_seedling.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_seedling` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.obs_seedling` (
   id              STRING NOT NULL,
   submission_id   STRING NOT NULL,
   import_batch_id STRING NOT NULL,
@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_seedling` (
 );
 
 -- ─── 13_obs_woody_debris.sql ─────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_woody_debris` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.obs_woody_debris` (
   id                          STRING NOT NULL,
   submission_id               STRING NOT NULL,
   import_batch_id             STRING NOT NULL,
@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.obs_woody_debris` (
 -- ─── 14_etl_validation_flags.sql ─────────────────────────────────────────
 -- Every quality issue detected during transform lands here so admins can audit
 -- data quality without re-running the pipeline.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.etl_validation_flags` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.etl_validation_flags` (
   id              STRING    NOT NULL,
   entity_type     STRING    NOT NULL, -- submission | tree | stem | seedling | woody_debris | batch
   entity_id       STRING,
@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.etl_validation_flags` (
 
 -- ─── 15_watermark.sql ─────────────────────────────────────────
 -- Per-source poll watermark used by /sync/zoho. One row per source.
-CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.etl_watermark` (
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.etl_watermark` (
   source          STRING    NOT NULL,
   last_synced_at  TIMESTAMP NOT NULL,
   updated_at      TIMESTAMP NOT NULL
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS `YOUR_PROJECT_ID.tree_census.etl_watermark` (
 -- Flat 80-column map dataset matching seed/examples/*_looker_sample.csv.
 -- Web app's Maps page reads from this view. Rebuilt every time the underlying
 -- fact/obs tables change (BigQuery views are logical).
-CREATE OR REPLACE VIEW `YOUR_PROJECT_ID.tree_census.looker_map_points` AS
+CREATE OR REPLACE VIEW `seea-2026.tree_census.looker_map_points` AS
 WITH stems AS (
   SELECT
     s.id                                                    AS map_record_id,
@@ -291,13 +291,13 @@ WITH stems AS (
     CAST(NULL AS INT64)   AS small_piece_count,
     CAST(NULL AS INT64)   AS fine_piece_count,
     fs.remarks
-  FROM `YOUR_PROJECT_ID.tree_census.obs_tree_stem` s
-  JOIN `YOUR_PROJECT_ID.tree_census.obs_tree` ot ON ot.id = s.tree_id
-  JOIN `YOUR_PROJECT_ID.tree_census.fact_submission` fs ON fs.id = s.submission_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_project`  dp  ON dp.id = fs.project_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_species`  dsps ON dsps.id = fs.species_id
+  FROM `seea-2026.tree_census.obs_tree_stem` s
+  JOIN `seea-2026.tree_census.obs_tree` ot ON ot.id = s.tree_id
+  JOIN `seea-2026.tree_census.fact_submission` fs ON fs.id = s.submission_id
+  LEFT JOIN `seea-2026.tree_census.dim_project`  dp  ON dp.id = fs.project_id
+  LEFT JOIN `seea-2026.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
+  LEFT JOIN `seea-2026.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
+  LEFT JOIN `seea-2026.tree_census.dim_species`  dsps ON dsps.id = fs.species_id
 ),
 seedlings AS (
   SELECT
@@ -344,12 +344,12 @@ seedlings AS (
     CAST(NULL AS INT64)   AS small_piece_count,
     CAST(NULL AS INT64)   AS fine_piece_count,
     fs.remarks
-  FROM `YOUR_PROJECT_ID.tree_census.obs_seedling` sd
-  JOIN `YOUR_PROJECT_ID.tree_census.fact_submission` fs ON fs.id = sd.submission_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_project`  dp  ON dp.id = fs.project_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_species`  dsps ON dsps.id = fs.species_id
+  FROM `seea-2026.tree_census.obs_seedling` sd
+  JOIN `seea-2026.tree_census.fact_submission` fs ON fs.id = sd.submission_id
+  LEFT JOIN `seea-2026.tree_census.dim_project`  dp  ON dp.id = fs.project_id
+  LEFT JOIN `seea-2026.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
+  LEFT JOIN `seea-2026.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
+  LEFT JOIN `seea-2026.tree_census.dim_species`  dsps ON dsps.id = fs.species_id
 ),
 woody AS (
   SELECT
@@ -394,11 +394,11 @@ woody AS (
     wd.tip_diameter_cm, wd.middle_diameter_cm, wd.base_diameter_cm,
     wd.medium_piece_count, wd.small_piece_count, wd.fine_piece_count,
     fs.remarks
-  FROM `YOUR_PROJECT_ID.tree_census.obs_woody_debris` wd
-  JOIN `YOUR_PROJECT_ID.tree_census.fact_submission` fs ON fs.id = wd.submission_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_project`  dp  ON dp.id = fs.project_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
-  LEFT JOIN `YOUR_PROJECT_ID.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
+  FROM `seea-2026.tree_census.obs_woody_debris` wd
+  JOIN `seea-2026.tree_census.fact_submission` fs ON fs.id = wd.submission_id
+  LEFT JOIN `seea-2026.tree_census.dim_project`  dp  ON dp.id = fs.project_id
+  LEFT JOIN `seea-2026.tree_census.dim_plot`     dpl ON dpl.id = fs.plot_id
+  LEFT JOIN `seea-2026.tree_census.dim_subplot`  dsp ON dsp.id = fs.subplot_id
 )
 SELECT * FROM stems
 UNION ALL SELECT * FROM seedlings
