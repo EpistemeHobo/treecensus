@@ -1,0 +1,42 @@
+# Build and deploy the ETL service to Cloud Run.
+#
+# From repo root:
+#   gcloud builds submit --config etl/cloudbuild.yaml etl
+#
+# Substitutions can be overridden at submit time:
+#   --substitutions=_REGION=us-central1,_DATASET=tree_census
+
+substitutions:
+  _SERVICE: treecensus-etl
+  _REGION: us-central1
+  _DATASET: tree_census
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA", "."]
+
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args: ["push", "gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA"]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --no-allow-unauthenticated
+      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=$_DATASET
+      # Once you've created the secrets, uncomment to mount them:
+      # - --set-secrets=ZOHO_WEBHOOK_SECRET=zoho-webhook-secret:latest,ZOHO_OAUTH_CLIENT_ID=zoho-oauth-client-id:latest,ZOHO_OAUTH_CLIENT_SECRET=zoho-oauth-client-secret:latest,ZOHO_OAUTH_REFRESH_TOKEN=zoho-oauth-refresh-token:latest
+
+images:
+  - gcr.io/$PROJECT_ID/$_SERVICE:$SHORT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY

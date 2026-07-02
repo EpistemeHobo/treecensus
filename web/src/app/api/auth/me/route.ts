@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, SESSION_COOKIE } from '@/lib/auth'
+import { getUserById } from '@/lib/users'
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value
@@ -8,8 +9,10 @@ export async function GET(req: NextRequest) {
   const payload = verifyToken(token)
   if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
-  // TODO: fetch full user record from BigQuery using payload.sub
-  return NextResponse.json({
-    user: { id: payload.sub, email: payload.email, role: payload.role },
-  })
+  const user = await getUserById(payload.sub)
+  if (!user || user.status === 'disabled') {
+    return NextResponse.json({ error: 'Account not available' }, { status: 401 })
+  }
+
+  return NextResponse.json({ user })
 }

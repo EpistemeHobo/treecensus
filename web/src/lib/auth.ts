@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import type { User, AuthSession, UserRole } from '@/types'
 
 const JWT_SECRET = process.env.JWT_SECRET! // REPLACE_WITH_STRONG_RANDOM_SECRET
@@ -49,7 +51,44 @@ export const PORTAL_ROUTES: Record<string, UserRole> = {
   '/reports': 'data_manager',
   '/export': 'data_viewer',
   '/admin': 'admin',
+  '/settings': 'field_user',
 }
 
 // ─── Cookie name ─────────────────────────────────────────────────────────────
 export const SESSION_COOKIE = 'tc_session'
+
+// ─── Request helpers ─────────────────────────────────────────────────────────
+
+export interface SessionPayload {
+  sub: string
+  role: UserRole
+  email: string
+}
+
+export function getSessionFromRequest(req: NextRequest): SessionPayload | null {
+  const token = req.cookies.get(SESSION_COOKIE)?.value
+  if (!token) return null
+  return verifyToken(token)
+}
+
+/**
+ * Guard for API routes. Returns the session payload on success, or a
+ * NextResponse (401/403) that the caller should return directly.
+ */
+export function requireRole(
+  req: NextRequest,
+  required: UserRole,
+): SessionPayload | NextResponse {
+  const session = getSessionFromRequest(req)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
+  }
+  if (!hasRole(session.role, required)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return session
+}
+
+export function isNextResponse(v: unknown): v is NextResponse {
+  return v instanceof NextResponse
+}

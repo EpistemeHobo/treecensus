@@ -1,46 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { signToken, buildSession, SESSION_COOKIE } from '@/lib/auth'
-import type { User } from '@/types'
-
-// TODO: replace this stub with a real BigQuery users table lookup
-async function findUserByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
-  // Placeholder — seed real users in the BigQuery users table
-  const STUB_USERS: Array<User & { passwordHash: string }> = [
-    {
-      id: 'user-001',
-      email: 'admin@treecensus.local',
-      name: 'Admin User',
-      role: 'admin',
-      createdAt: '2026-01-01T00:00:00Z',
-      // bcrypt hash of "changeme" — replace in production
-      passwordHash: '$2a$10$a.Wut0yaN0kqHcWTDDsi0.k8Xr74jlpSCG5abEp1/pTeKcAmoEooC',
-    },
-  ]
-  return STUB_USERS.find(u => u.email === email) ?? null
-}
+import { signToken, SESSION_COOKIE } from '@/lib/auth'
+import { findUserByEmail, touchLastLogin } from '@/lib/users'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json()
+  const { email, password } = await req.json().catch(() => ({}))
 
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
   }
 
-  const record = await findUserByEmail(email)
-  if (!record) {
+  const record = await findUserByEmail(String(email))
+  if (!record || record.status === 'disabled') {
+    await logAudit({ action: 'auth.login_failed', actorEmail: String(email) })
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
   }
 
-  const valid = await bcrypt.compare(password, record.passwordHash)
+  const valid = await bcrypt.compare(String(password), record.passwordHash)
   if (!valid) {
+    await logAudit({
+      action: 'auth.login_failed',
+      actorId: record.id,
+      actorEmail: record.email,
+    })
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
   }
 
-  const { passwordHash: _, ...user } = record
-  const token = signToken(user)
-  const session = buildSession(user, token)
+  const { passwordHash: _drop, ...user } = record
+  void _drop
 
+  await touchLastLogin(user.id)
+  await logAudit({
+    action: 'auth.login',
+    actorId: user.id,
+    actorEmail: user.email,
+  })
+
+  const token = signToken(user)
   const res = NextResponse.json({ user })
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,

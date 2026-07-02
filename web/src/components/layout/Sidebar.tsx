@@ -15,6 +15,7 @@ import {
   Download,
   Shield,
   LogOut,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 
 interface NavItem {
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/reports',   label: 'Reports',   icon: FileText,         minRole: 'data_manager' },
   { href: '/export',    label: 'Export',    icon: Download,         minRole: 'data_viewer'  },
   { href: '/admin',     label: 'Admin',     icon: Shield,           minRole: 'admin'        },
+  { href: '/settings',  label: 'Settings',  icon: SettingsIcon,     minRole: 'field_user'   },
 ]
 
 export function Sidebar() {

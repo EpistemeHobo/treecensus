@@ -29,6 +29,7 @@ const PORTAL_ROUTES: Record<string, UserRole> = {
   '/reports':   'data_manager',
   '/export':    'data_viewer',
   '/admin':     'admin',
+  '/settings':  'field_user',
 }
 
 function hasRole(userRole: UserRole, required: UserRole): boolean {

@@ -1,0 +1,4 @@
+run,label,raw_form_rows,dim_project,dim_plot,dim_subplot,dim_species,dim_species_crosswalk,fact_submission,obs_tree,obs_tree_stem,obs_seedling,obs_woody_debris,looker_rows,looker_tree_stem,looker_seedling,looker_woody_debris,local_xy_complete,latlon_complete,geo_ready_true,geo_ready_false,species_applicable_rows,species_id_complete,scientific_name_complete,etl_validation_flags
+csv_form,CSV electronic form,10720,1,1,4,9,,243,216,236,4,23,263,236,4,23,263,259,259,4,240,239,239,297
+excel_batch1,Excel batch 1,107381,6,19,76,41,100,2600,2024,2883,391,185,3459,2883,391,185,3454,0,0,3459,3274,3264,3244,4249
+excel_rar_2_1,Excel RAR 2.1,252757,5,25,95,77,100,7348,6048,6838,1005,295,8138,6838,1005,295,8096,0,0,8138,7843,7843,7618,8787
