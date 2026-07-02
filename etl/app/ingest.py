@@ -5,6 +5,7 @@ module only cares about capturing the submission durably and idempotently.
 """
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -97,7 +98,7 @@ def land_payload(payload: dict[str, Any], *, source: str, notes: str | None = No
                 "source": source,
                 "source_row_id": ext_id,
                 "external_id": ext_id,
-                "payload": payload,
+                "payload": json.dumps(payload, ensure_ascii=False),
                 "sha256": payload_sha,
                 "received_at": now,
             }

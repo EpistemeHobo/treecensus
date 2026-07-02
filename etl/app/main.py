@@ -1,7 +1,7 @@
 """FastAPI entrypoint. Deployed to Cloud Run.
 
 Endpoints:
-  GET  /healthz            liveness
+  GET  /health            liveness
   POST /webhook/zoho       Zoho Forms webhook receiver
   POST /sync/zoho          scheduled poll (called by Cloud Scheduler)
 """
@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="treecensus-etl")
 
 
-@app.get("/healthz")
+@app.get("/health")
 async def healthz() -> dict:
     return {
         "ok": True,
