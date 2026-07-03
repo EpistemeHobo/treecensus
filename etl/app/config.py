@@ -27,7 +27,7 @@ class Settings:
             gcp_project_id=os.getenv("GCP_PROJECT_ID", ""),
             bigquery_dataset=os.getenv("BIGQUERY_DATASET", "tree_census"),
             dry_run=os.getenv("ETL_DRY_RUN", "").lower() in {"1", "true", "yes"},
-            zoho_webhook_secret=os.getenv("ZOHO_WEBHOOK_SECRET") or None,
+            zoho_webhook_secret=(os.getenv("ZOHO_WEBHOOK_SECRET") or "").strip() or None,
             zoho_form_link_name=os.getenv("ZOHO_FORM_LINK_NAME") or None,
             zoho_oauth_refresh_token=os.getenv("ZOHO_OAUTH_REFRESH_TOKEN") or None,
             zoho_oauth_client_id=os.getenv("ZOHO_OAUTH_CLIENT_ID") or None,
