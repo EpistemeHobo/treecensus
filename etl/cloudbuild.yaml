@@ -35,8 +35,9 @@ steps:
       - --platform=managed
       - --no-allow-unauthenticated
       - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=$_DATASET
-      # Once you've created the secrets, uncomment to mount them:
-      # - --set-secrets=ZOHO_WEBHOOK_SECRET=zoho-webhook-secret:latest,ZOHO_OAUTH_CLIENT_ID=zoho-oauth-client-id:latest,ZOHO_OAUTH_CLIENT_SECRET=zoho-oauth-client-secret:latest,ZOHO_OAUTH_REFRESH_TOKEN=zoho-oauth-refresh-token:latest
+      - --set-secrets=ZOHO_WEBHOOK_SECRET=zoho-webhook-secret:latest
+      # When OAuth secrets exist, extend the line above with:
+      #   ,ZOHO_OAUTH_CLIENT_ID=zoho-oauth-client-id:latest,ZOHO_OAUTH_CLIENT_SECRET=zoho-oauth-client-secret:latest,ZOHO_OAUTH_REFRESH_TOKEN=zoho-oauth-refresh-token:latest
 
 images:
   - gcr.io/$PROJECT_ID/$_SERVICE:$_TAG

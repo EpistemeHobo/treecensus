@@ -7,6 +7,7 @@ Endpoints:
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -39,14 +40,19 @@ async def zoho_webhook(request: Request) -> dict:
     raw = await request.body()
 
     if settings.zoho_webhook_secret:
-        provided = (
+        # Zoho Forms only supports static Custom Headers, so accept a shared
+        # token in X-Auth-Token. Also accept HMAC for other callers.
+        token = request.headers.get("X-Auth-Token") or ""
+        signature = (
             request.headers.get("X-Zoho-Signature")
             or request.headers.get("X-Zoho-Webhook-Signature")
             or request.headers.get("X-Signature")
             or ""
         )
-        if not verify_hmac(settings.zoho_webhook_secret, provided, raw):
-            raise HTTPException(status_code=401, detail="invalid signature")
+        token_ok = token and hmac.compare_digest(token, settings.zoho_webhook_secret)
+        hmac_ok = signature and verify_hmac(settings.zoho_webhook_secret, signature, raw)
+        if not (token_ok or hmac_ok):
+            raise HTTPException(status_code=401, detail="unauthorized")
 
     try:
         payload = await request.json()
