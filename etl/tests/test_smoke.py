@@ -50,10 +50,10 @@ def test_hmac_verify():
     assert not verify_hmac(secret, "badsig", body)
 
 def test_land_payload_dry_run():
-    payload = {"record_id": "abc123", "species_raw": "Avicennia marina", "gbh_cm": 12.5}
+    payload = {"map_record_id": "stem_000001_1", "species_raw": "Avicennia marina", "gbh_cm": 12.5}
     r = land_payload(payload, source="zoho_webhook")
     assert r["status"] == "landed"
-    assert r["external_id"] == "abc123"
+    assert r["map_record_id"] == "stem_000001_1"
     assert len(r["sha256"]) == 64
 
 def test_reject_bad_source():

@@ -4,6 +4,15 @@ import { signToken, SESSION_COOKIE } from '@/lib/auth'
 import { findUserByEmail, touchLastLogin } from '@/lib/users'
 import { logAudit } from '@/lib/audit'
 
+// Non-critical side effects (audit log, last-login stamp) must never break the
+// login response — e.g. BigQuery blocks UPDATE on rows still in the streaming
+// buffer for ~30 min after a user is seeded.
+function safe(p: Promise<unknown>): Promise<void> {
+  return Promise.resolve(p).then(() => undefined).catch(err => {
+    console.error('[login] non-critical side effect failed:', err)
+  })
+}
+
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json().catch(() => ({}))
 
@@ -13,29 +22,29 @@ export async function POST(req: NextRequest) {
 
   const record = await findUserByEmail(String(email))
   if (!record || record.status === 'disabled') {
-    await logAudit({ action: 'auth.login_failed', actorEmail: String(email) })
+    await safe(logAudit({ action: 'auth.login_failed', actorEmail: String(email) }))
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
   }
 
   const valid = await bcrypt.compare(String(password), record.passwordHash)
   if (!valid) {
-    await logAudit({
+    await safe(logAudit({
       action: 'auth.login_failed',
       actorId: record.id,
       actorEmail: record.email,
-    })
+    }))
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
   }
 
   const { passwordHash: _drop, ...user } = record
   void _drop
 
-  await touchLastLogin(user.id)
-  await logAudit({
+  await safe(touchLastLogin(user.id))
+  await safe(logAudit({
     action: 'auth.login',
     actorId: user.id,
     actorEmail: user.email,
-  })
+  }))
 
   const token = signToken(user)
   const res = NextResponse.json({ user })

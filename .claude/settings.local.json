@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node -e \"const b = require\\('bcryptjs'\\); b.hash\\('changeme', 10\\).then\\(console.log\\)\")",
       "WebSearch",
-      "mcp__visualize__show_widget"
+      "mcp__visualize__show_widget",
+      "Read(//c/Users/philo/Documents/**)"
     ]
   }
 }

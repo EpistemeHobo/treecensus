@@ -1,0 +1,98 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Single flat store — the whole data model after abandoning the star schema.
+-- One row per field observation (tree stem, seedling, or woody debris,
+-- discriminated by observation_type), 80 fields, the DMCR Looker map shape.
+-- Both feeds write here: the Zoho webhook (etl/app/ingest.py) and CSV loads.
+--
+-- All columns are STRING to store the data verbatim ("as is"). Cast at read
+-- time in Looker / the web app / ad-hoc SQL as needed.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `seea-2026.tree_census.observations` (
+  map_record_id             STRING,
+  observation_type          STRING,
+  source_row_id             STRING,
+  submission_id             STRING,
+  import_batch_id           STRING,
+  source_file_sha256        STRING,
+  project_id                STRING,
+  project_no_raw            STRING,
+  project_no_int            STRING,
+  plot_id                   STRING,
+  plot_no_raw               STRING,
+  plot_no_int               STRING,
+  subplot_id                STRING,
+  subplot_raw               STRING,
+  subplot_no                STRING,
+  subplot_name              STRING,
+  subplot_code              STRING,
+  dataset_type              STRING,
+  item_tag_id_raw           STRING,
+  added_time                STRING,
+  offline_added_time        STRING,
+  task_owner                STRING,
+  source_status             STRING,
+  local_x_m                 STRING,
+  local_y_m                 STRING,
+  utm_easting               STRING,
+  utm_northing              STRING,
+  utm_zone                  STRING,
+  utm_hemisphere            STRING,
+  latitude                  STRING,
+  longitude                 STRING,
+  geo_ready                 STRING,
+  coordinate_note           STRING,
+  species_id                STRING,
+  species_raw               STRING,
+  thai_name                 STRING,
+  scientific_name           STRING,
+  scientific_author         STRING,
+  normalized_species_name   STRING,
+  tree_id                   STRING,
+  stem_id                   STRING,
+  seedling_id               STRING,
+  woody_debris_id           STRING,
+  size_class_raw            STRING,
+  size_class_code           STRING,
+  azimuth_deg               STRING,
+  distance_m                STRING,
+  stem_no                   STRING,
+  stand_fall_raw            STRING,
+  stand_fall_code           STRING,
+  live_dead_raw             STRING,
+  live_dead_code            STRING,
+  gbh_cm                    STRING,
+  gbh_method_raw            STRING,
+  gbh_method_code           STRING,
+  total_height_m            STRING,
+  height_method_raw         STRING,
+  height_method_code        STRING,
+  crown_class_raw           STRING,
+  crown_class_code          STRING,
+  crown_condition_raw       STRING,
+  crown_condition_code      STRING,
+  tree_health_raw           STRING,
+  tree_health_code          STRING,
+  lichen_pct                STRING,
+  seedling_count            STRING,
+  transect_raw              STRING,
+  transect_deg              STRING,
+  large_woody_condition_raw  STRING,
+  large_woody_condition_code STRING,
+  tip_diameter_cm           STRING,
+  middle_diameter_cm        STRING,
+  base_diameter_cm          STRING,
+  medium_piece_count        STRING,
+  small_piece_count         STRING,
+  fine_piece_count          STRING,
+  remarks                   STRING,
+  validation_flag_count     STRING,
+  validation_flag_codes     STRING,
+  validation_flag_severities STRING
+)
+CLUSTER BY observation_type, project_id;
+
+-- Backwards-compat: anything still pointing at looker_map_points keeps working
+-- (e.g. an existing Looker Studio data source). Safe to delete if unused.
+CREATE OR REPLACE VIEW `seea-2026.tree_census.looker_map_points` AS
+SELECT * FROM `seea-2026.tree_census.observations`;

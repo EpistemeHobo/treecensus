@@ -9,7 +9,6 @@ import type { UserRole } from '@/types'
 import {
   LayoutDashboard,
   TreePine,
-  Terminal,
   Map,
   FileText,
   Download,
@@ -28,8 +27,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, minRole: 'data_viewer'  },
   { href: '/data',      label: 'Data',      icon: TreePine,         minRole: 'data_viewer'  },
-  { href: '/maps',      label: 'Maps',      icon: Map,              minRole: 'data_viewer'  },
-  { href: '/query',     label: 'SQL Query', icon: Terminal,         minRole: 'analyst'      },
+  { href: '/maps',      label: 'Maps & Statistics', icon: Map,      minRole: 'data_viewer'  },
   { href: '/reports',   label: 'Reports',   icon: FileText,         minRole: 'data_manager' },
   { href: '/export',    label: 'Export',    icon: Download,         minRole: 'data_viewer'  },
   { href: '/admin',     label: 'Admin',     icon: Shield,           minRole: 'admin'        },

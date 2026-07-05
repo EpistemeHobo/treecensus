@@ -1,53 +1,49 @@
 import { TopBar } from '@/components/layout/TopBar'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Map } from 'lucide-react'
+import { BarChart3, ExternalLink } from 'lucide-react'
 
-// Leaflet is loaded client-side only to avoid SSR issues.
-// The actual map component will be created in Milestone 8.
+// Looker Studio embed (maps + statistics report).
+const LOOKER_EMBED = 'https://datastudio.google.com/embed/reporting/b2bc645b-119e-425e-9bc2-dc7147e83604/page/p_slwi2rm84d'
+const LOOKER_OPEN = LOOKER_EMBED.replace('/embed/reporting/', '/reporting/')
 
 export default function MapsPage() {
   return (
     <div className="flex flex-col flex-1">
       <TopBar
-        title="Map View"
-        subtitle="Geographic distribution of tree census records"
-        actions={
-          <div className="flex gap-2">
-            <Badge variant="default">Leaflet.js</Badge>
-            <Badge variant="warning">Milestone 8</Badge>
-          </div>
-        }
+        title="Maps & Statistics"
+        subtitle="Geographic distribution and live statistics"
+        actions={<Badge variant="violet">Looker Studio</Badge>}
       />
 
-      <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto">
-        <Card className="flex-1">
-          <div
-            className="flex flex-col items-center justify-center gap-4 border border-dashed border-white/[0.08] rounded-sm"
-            style={{ minHeight: 480 }}
-          >
-            <Map size={36} className="text-muted opacity-30" />
-            <div className="text-center">
-              <p className="text-[15px] text-muted font-medium">Interactive map — coming in Milestone 8</p>
-              <p className="text-[13px] text-muted/60 mt-1 max-w-sm">
-                Tree locations will be plotted on a Leaflet map with species filters
-                and site boundary overlays once BigQuery is connected.
-              </p>
-            </div>
+      <div className="flex-1 p-8 overflow-auto">
+        {/* Card chrome matches the portal; the report sits on a white panel
+            with clipped corners so the light Looker theme reads as intentional. */}
+        <div className="bg-white/5 dark:bg-surface backdrop-blur-sm border border-dim rounded-lg overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-dim">
+            <span className="flex items-center gap-2 text-[12px] uppercase tracking-widest font-semibold text-muted">
+              <BarChart3 size={13} /> Census Report
+            </span>
+            <a
+              href={LOOKER_OPEN}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[12px] text-muted hover:text-coral transition-colors"
+            >
+              Open in Looker Studio <ExternalLink size={12} />
+            </a>
           </div>
-        </Card>
 
-        {/* Filter panel placeholder */}
-        <Card>
-          <h3 className="text-[13px] font-semibold text-neutral mb-3">Filters</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['Site', 'Species', 'Condition', 'Date range'].map(f => (
-              <div key={f} className="h-10 bg-white/[0.03] border border-white/[0.06] rounded-sm flex items-center px-3 text-[13px] text-muted/50">
-                {f}
-              </div>
-            ))}
+          <div className="bg-white">
+            <iframe
+              title="Tree Census — Maps & Statistics"
+              src={LOOKER_EMBED}
+              className="w-full block"
+              style={{ height: '78vh', minHeight: 540, border: 0 }}
+              allowFullScreen
+              sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            />
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   )
