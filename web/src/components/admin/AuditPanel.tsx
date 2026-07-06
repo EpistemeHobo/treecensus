@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card } from '@/components/ui/Card'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 
@@ -45,7 +45,7 @@ export function AuditPanel() {
   }, [])
 
   return (
-    <Card>
+    <MangroveCard variant="sand">
       <h2 className="text-[14px] font-semibold text-neutral mb-5">Audit Log</h2>
       {error && (
         <p className="text-[13px] text-rose border border-rose/20 bg-rose/5 rounded-sm px-3 py-2 mb-4">
@@ -77,6 +77,6 @@ export function AuditPanel() {
         rows={events}
         emptyMessage="No audit events yet."
         />
-    </Card>
+    </MangroveCard>
   )
 }

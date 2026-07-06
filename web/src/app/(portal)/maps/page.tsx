@@ -1,5 +1,6 @@
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/Badge'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { BarChart3, ExternalLink } from 'lucide-react'
 
 // Looker Studio embed (maps + statistics report).
@@ -16,18 +17,18 @@ export default function MapsPage() {
       />
 
       <div className="flex-1 p-8 overflow-auto">
-        {/* Card chrome matches the portal; the report sits on a white panel
-            with clipped corners so the light Looker theme reads as intentional. */}
-        <div className="bg-white/5 dark:bg-surface backdrop-blur-sm border border-dim rounded-lg overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-dim">
-            <span className="flex items-center gap-2 text-[12px] uppercase tracking-widest font-semibold text-muted">
+        {/* Mangrove-green card chrome with root texture; the report sits on a
+            white panel inside so the light Looker theme reads as intentional. */}
+        <MangroveCard seed={73} className="!p-0 overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f4b36]/70">
+            <span className="flex items-center gap-2 text-[12px] uppercase tracking-widest font-semibold text-coral/90">
               <BarChart3 size={13} /> Census Report
             </span>
             <a
               href={LOOKER_OPEN}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[12px] text-muted hover:text-coral transition-colors"
+              className="flex items-center gap-1.5 text-[12px] text-neutral/70 hover:text-coral transition-colors"
             >
               Open in Looker Studio <ExternalLink size={12} />
             </a>
@@ -43,7 +44,7 @@ export default function MapsPage() {
               sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             />
           </div>
-        </div>
+        </MangroveCard>
       </div>
     </div>
   )

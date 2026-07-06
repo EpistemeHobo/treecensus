@@ -1,6 +1,6 @@
 import { TopBar } from '@/components/layout/TopBar'
 import { StatCard } from '@/components/portal/StatCard'
-import { Card } from '@/components/ui/Card'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Badge } from '@/components/ui/Badge'
 import { TreePine, MapPin, Leaf, FileCheck, AlertCircle } from 'lucide-react'
 import { getDashboardStats, getObservationTypeCounts } from '@/lib/bigquery'
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         {/* Observation breakdown + system status */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <Card>
+            <MangroveCard variant="sand">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-[14px] font-semibold text-neutral">Observations by Type</h2>
                 <Badge variant="default">{totalObservations.toLocaleString()} total</Badge>
@@ -95,10 +95,10 @@ export default async function DashboardPage() {
                   })}
                 </div>
               )}
-            </Card>
+            </MangroveCard>
           </div>
 
-          <Card>
+          <MangroveCard variant="sand">
             <h2 className="text-[14px] font-semibold text-neutral mb-5">System Status</h2>
             <div className="flex flex-col gap-3">
               {[
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
               ))}
             </div>
             <p className="text-[11px] text-muted/50 mt-5">Last submission: {stats.lastSyncAt}</p>
-          </Card>
+          </MangroveCard>
         </div>
       </div>
     </div>

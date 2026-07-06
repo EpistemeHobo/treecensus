@@ -1,5 +1,5 @@
 import { TopBar } from '@/components/layout/TopBar'
-import { Card } from '@/components/ui/Card'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Badge } from '@/components/ui/Badge'
 import { Shield } from 'lucide-react'
 import { UsersPanel } from '@/components/admin/UsersPanel'
@@ -25,9 +25,9 @@ export default function AdminPage() {
       <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto">
         <UsersPanel />
 
-        <Card>
+        <MangroveCard seed={128} subtle>
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
-            <span className="flex items-center gap-2"><Shield size={14} className="text-muted" /> Role Matrix</span>
+            <span className="flex items-center gap-2"><Shield size={14} className="text-coral/90" /> Role Matrix</span>
           </h2>
           <div className="flex flex-col gap-2">
             {Object.entries(ROLE_DESCRIPTIONS).map(([role, desc]) => (
@@ -35,11 +35,11 @@ export default function AdminPage() {
                 <Badge variant={role === 'admin' ? 'coral' : role === 'analyst' ? 'violet' : 'default'}>
                   {role.replace('_', ' ')}
                 </Badge>
-                <span className="text-[13px] text-muted">{desc}</span>
+                <span className="text-[13px] text-neutral">{desc}</span>
               </div>
             ))}
           </div>
-        </Card>
+        </MangroveCard>
 
         <AuditPanel />
       </div>

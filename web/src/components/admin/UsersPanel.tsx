@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card } from '@/components/ui/Card'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Table } from '@/components/ui/Table'
@@ -104,7 +104,7 @@ export function UsersPanel() {
   }
 
   return (
-    <Card>
+    <MangroveCard seed={91} subtle>
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-[14px] font-semibold text-neutral">Users</h2>
         <Button size="sm" onClick={() => setAddOpen(true)}>
@@ -186,6 +186,6 @@ export function UsersPanel() {
         onClose={() => setResetTarget(null)}
         onDone={load}
         />
-    </Card>
+    </MangroveCard>
   )
 }
