@@ -248,14 +248,13 @@ async function observationFieldSet(): Promise<Set<string>> {
   return _fieldSet
 }
 
-export async function filterObservations(opts: {
+// Build the shared WHERE clause + query params for the structured filter used by
+// both the row browser and the insights aggregations. Column names are validated
+// against the schema allow-list; values always flow through query parameters.
+async function buildObservationWhere(opts: {
   search?: string
   filters?: ObservationFilter[]
-  limit?: number
-  offset?: number
-}): Promise<{ rows: ObservationRow[]; total: number }> {
-  const limit = Math.min(opts.limit ?? 50, 1000)
-  const offset = opts.offset ?? 0
+}): Promise<{ where: string; params: Record<string, unknown> }> {
   const fieldSet = await observationFieldSet()
 
   const conditions: string[] = ['1=1']
@@ -285,7 +284,19 @@ export async function filterObservations(opts: {
     conditions.push(`(${ors})`)
     params.search = `%${opts.search.toLowerCase()}%`
   }
-  const where = conditions.join(' AND ')
+
+  return { where: conditions.join(' AND '), params }
+}
+
+export async function filterObservations(opts: {
+  search?: string
+  filters?: ObservationFilter[]
+  limit?: number
+  offset?: number
+}): Promise<{ rows: ObservationRow[]; total: number }> {
+  const limit = Math.min(opts.limit ?? 50, 1000)
+  const offset = opts.offset ?? 0
+  const { where, params } = await buildObservationWhere(opts)
 
   const [rows] = await bq.query({
     query: `
@@ -304,6 +315,147 @@ export async function filterObservations(opts: {
   return {
     rows: rows as ObservationRow[],
     total: Number((countRows[0] as { total: number | string }).total),
+  }
+}
+
+// ─── Insights (aggregate stats for the Data page "View Data Insight") ─────────
+
+export interface CategoryCount { label: string; count: number }
+export interface HistogramBin { label: string; count: number }
+
+export interface ObservationInsights {
+  total: number
+  distinctSpecies: number
+  distinctPlots: number
+  avgGbhCm: number | null
+  avgHeightM: number | null
+  byObservationType: CategoryCount[]
+  topSpecies: CategoryCount[]
+  bySizeClass: CategoryCount[]
+  byLiveDead: CategoryCount[]
+  byCrownCondition: CategoryCount[]
+  topPlots: CategoryCount[]
+  gbhHistogram: HistogramBin[]
+}
+
+/**
+ * Aggregate statistics over the *same* filtered set the row browser shows.
+ * Reuses buildObservationWhere so the numbers always match the visible query.
+ */
+export async function getObservationInsights(opts: {
+  search?: string
+  filters?: ObservationFilter[]
+}): Promise<ObservationInsights> {
+  const { where, params } = await buildObservationWhere(opts)
+  const FROM = `\`${OBSERVATIONS_FQN}\` WHERE ${where}`
+
+  // Reusable coalesced species label (normalized → scientific → thai → raw).
+  const SPECIES_LABEL = `COALESCE(
+    NULLIF(normalized_species_name, ''),
+    NULLIF(scientific_name, ''),
+    NULLIF(thai_name, ''),
+    NULLIF(species_raw, ''),
+    '(unspecified)'
+  )`
+
+  const catQuery = (expr: string, whereExtra = '') => `
+    SELECT ${expr} AS label, COUNT(*) AS count
+    FROM ${FROM} ${whereExtra ? `AND ${whereExtra}` : ''}
+    GROUP BY label
+    ORDER BY count DESC
+  `
+
+  const run = async (query: string) => {
+    const [rows] = await bq.query({ query, params })
+    return rows as Record<string, unknown>[]
+  }
+
+  const toCats = (rows: Record<string, unknown>[]): CategoryCount[] =>
+    rows.map(r => ({ label: String(r.label ?? '—') || '(blank)', count: Number(r.count) }))
+
+  const [
+    summaryRows,
+    typeRows,
+    speciesRows,
+    sizeRows,
+    liveDeadRows,
+    crownRows,
+    plotRows,
+    gbhRows,
+  ] = await Promise.all([
+    run(`
+      SELECT
+        COUNT(*) AS total,
+        COUNT(DISTINCT NULLIF(CAST(species_id AS STRING), '')) AS distinctSpecies,
+        COUNT(DISTINCT NULLIF(CAST(plot_id AS STRING), '')) AS distinctPlots,
+        AVG(SAFE_CAST(gbh_cm AS FLOAT64)) AS avgGbh,
+        AVG(SAFE_CAST(total_height_m AS FLOAT64)) AS avgHeight
+      FROM ${FROM}
+    `),
+    run(catQuery(`COALESCE(NULLIF(CAST(observation_type AS STRING), ''), '(blank)')`)),
+    run(`
+      SELECT ${SPECIES_LABEL} AS label, COUNT(*) AS count
+      FROM ${FROM}
+      GROUP BY label
+      ORDER BY count DESC
+      LIMIT 12
+    `),
+    // Tree-stem code breakdowns exclude blank codes so a chart only appears when
+    // there's real distribution to show.
+    run(catQuery(`CAST(size_class_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(size_class_code AS STRING), '') IS NOT NULL`)),
+    run(catQuery(`CAST(live_dead_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(live_dead_code AS STRING), '') IS NOT NULL`)),
+    run(catQuery(`CAST(crown_condition_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(crown_condition_code AS STRING), '') IS NOT NULL`)),
+    run(`
+      SELECT COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS label, COUNT(*) AS count
+      FROM ${FROM}
+      GROUP BY label
+      ORDER BY count DESC
+      LIMIT 12
+    `),
+    run(`
+      WITH g AS (
+        SELECT SAFE_CAST(gbh_cm AS FLOAT64) AS gbh
+        FROM ${FROM} AND observation_type = 'tree_stem'
+      )
+      SELECT
+        CASE
+          WHEN gbh < 10  THEN '0–10'
+          WHEN gbh < 20  THEN '10–20'
+          WHEN gbh < 30  THEN '20–30'
+          WHEN gbh < 50  THEN '30–50'
+          WHEN gbh < 75  THEN '50–75'
+          WHEN gbh < 100 THEN '75–100'
+          ELSE '100+'
+        END AS label,
+        COUNT(*) AS count
+      FROM g
+      WHERE gbh IS NOT NULL
+      GROUP BY label
+    `),
+  ])
+
+  const s = (summaryRows[0] ?? {}) as Record<string, unknown>
+
+  // Order GBH bins along the size axis rather than by count.
+  const GBH_ORDER = ['0–10', '10–20', '20–30', '30–50', '50–75', '75–100', '100+']
+  const gbhMap = new Map(toCats(gbhRows).map(c => [c.label, c.count]))
+  const gbhHistogram = GBH_ORDER
+    .map(label => ({ label, count: gbhMap.get(label) ?? 0 }))
+    .filter(b => b.count > 0)
+
+  return {
+    total: Number(s.total ?? 0),
+    distinctSpecies: Number(s.distinctSpecies ?? 0),
+    distinctPlots: Number(s.distinctPlots ?? 0),
+    avgGbhCm: s.avgGbh == null ? null : Number(s.avgGbh),
+    avgHeightM: s.avgHeight == null ? null : Number(s.avgHeight),
+    byObservationType: toCats(typeRows),
+    topSpecies: toCats(speciesRows),
+    bySizeClass: toCats(sizeRows),
+    byLiveDead: toCats(liveDeadRows),
+    byCrownCondition: toCats(crownRows),
+    topPlots: toCats(plotRows),
+    gbhHistogram,
   }
 }
 

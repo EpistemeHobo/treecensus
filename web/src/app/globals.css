@@ -15,6 +15,7 @@
   --c-ghost:   rgba(0, 0, 0, 0.04);
   --c-coral:   #A8CC3A;
   --c-violet:  #C4956A;
+  --c-th:      #A85D1A;
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────────────── */
@@ -26,6 +27,7 @@
   --c-muted:   #A9A3B5;
   --c-dim:     rgba(255, 255, 255, 0.08);
   --c-ghost:   rgba(255, 255, 255, 0.04);
+  --c-th:      #EBB37F;
 }
 
 * { box-sizing: border-box; }

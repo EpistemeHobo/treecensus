@@ -81,22 +81,28 @@ interface MangroveCardProps {
   children: ReactNode
   className?: string
   // green = mangrove-roots dark green with root overlay
-  // sand  = flat dark-mode surface (#0A0A10), no roots — matches the sidebar
+  // sand  = flat surface (dark #0A0A10 / light #FCFDF9), no roots — matches the sidebar
   variant?: 'green' | 'sand'
   seed?: number
   // Thin the roots + drop opacity — for large cards where the default pattern is too busy.
   subtle?: boolean
+  // 'dark' (default) keeps the app's dark surfaces; 'light' switches the sand
+  // variant to the light-mode palette (day mode on the data table).
+  theme?: 'dark' | 'light'
 }
 
-export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false }: MangroveCardProps) {
+export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false, theme = 'dark' }: MangroveCardProps) {
   const isSand = variant === 'sand'
+  const isDark = theme !== 'light'
   const bg = isSand
-    ? '#0A0A10'
+    ? (isDark ? '#0A0A10' : '#FCFDF9')
     : 'radial-gradient(120% 100% at 0% 0%, #12362a 0%, #0d2c22 40%, #08201a 100%)'
-  const border = isSand ? 'border-[rgba(255,255,255,0.08)]' : 'border-[#1f4b36]/70'
+  const border = isSand
+    ? (isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-[rgba(0,0,0,0.09)]')
+    : 'border-[#1f4b36]/70'
   return (
     <div
-      className={`dark relative overflow-hidden rounded-lg border ${border} p-6 ${className}`}
+      className={`${isDark ? 'dark ' : ''}relative overflow-hidden rounded-lg border ${border} p-6 ${className}`}
       style={{ background: bg }}
     >
       {!isSand && <MangroveRoots seed={seed} subtle={subtle} />}

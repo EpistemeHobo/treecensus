@@ -86,7 +86,7 @@ export function Table<T extends Record<string, unknown>>({
                 <th
                   key={i}
                   colSpan={run.span}
-                  className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-coral/80 border-r border-dim last:border-r-0 bg-ghost/40"
+                  className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-[color:var(--c-th)]/80 border-r border-dim last:border-r-0 bg-ghost/40"
                 >
                   {run.group ?? ''}
                 </th>
@@ -97,7 +97,7 @@ export function Table<T extends Record<string, unknown>>({
             {columns.map(col => (
               <th
                 key={String(col.key)}
-                className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#EBB37F]"
+                className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[color:var(--c-th)]"
               >
                 {col.label}
               </th>

@@ -7,8 +7,10 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
-import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize } from 'lucide-react'
+import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download } from 'lucide-react'
 import FIELD_DICTIONARY from '@/data/field-dictionary.json'
+import { InsightsModal } from '@/components/data/InsightsModal'
+import { exportObservationsXlsx, MAX_EXPORT_ROWS } from '@/lib/export-xlsx'
 
 const VALUE_SUGGESTIONS = FIELD_DICTIONARY.fields as Record<string, string[]>
 const DICT_GENERATED_AT = FIELD_DICTIONARY.generatedAt as string
@@ -32,6 +34,13 @@ const OPERATORS: { value: FilterOp; label: string; noValue?: boolean }[] = [
 
 const TYPE_BADGE: Record<string, 'coral' | 'success' | 'violet' | 'default'> = {
   tree_stem: 'coral', seedling: 'success', woody_debris: 'violet',
+}
+
+// Human-readable description of a condition, e.g. `species_raw contains “oak”`.
+function describeFilter(f: Filter): string {
+  const op = OPERATORS.find(o => o.value === f.op)
+  const label = op?.label ?? f.op
+  return op?.noValue ? `${f.field} ${label}` : `${f.field} ${label} “${f.value}”`
 }
 
 // Column grouping — ordered; columns render in this order, with the group header spanning them.
@@ -272,6 +281,11 @@ export default function DataPage() {
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
   const [fieldPanelOpen, setFieldPanelOpen] = useState(false)
   const [tableFullscreen, setTableFullscreen] = useState(false)
+  const [tableTheme, setTableTheme] = useState<'dark' | 'light'>('dark')
+  const [insightsOpen, setInsightsOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState<{ loaded: number; total: number } | null>(null)
+  const [exportError, setExportError] = useState('')
 
   useEffect(() => {
     if (!tableFullscreen) return
@@ -426,7 +440,28 @@ export default function DataPage() {
     })
   }
 
+  async function handleExport() {
+    if (exporting || total === 0) return
+    if (total > MAX_EXPORT_ROWS) {
+      setExportError(`Too many records to export (${total.toLocaleString()}). The limit is ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters or keyword first.`)
+      return
+    }
+    setExporting(true); setExportError(''); setExportProgress({ loaded: 0, total })
+    try {
+      await exportObservationsXlsx({
+        query: { search: applied.search, filters: applied.filters },
+        columns: visibleColumns.map(c => ({ key: c.key, label: c.label })),
+        onProgress: (loaded, t) => setExportProgress({ loaded, total: t }),
+      })
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'Export failed')
+    } finally {
+      setExporting(false); setExportProgress(null)
+    }
+  }
+
   const activeFilterCount = applied.filters.filter(f => f.field).length
+  const activeConditions = applied.filters.filter(f => f.field)
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1
   const to = Math.min((page + 1) * PAGE_SIZE, total)
   const hasNext = to < total
@@ -581,7 +616,7 @@ export default function DataPage() {
                             }
                             title={allHidden ? 'Show all in group' : 'Hide all in group'}
                           >
-                            {allHidden ? <><Eye size={12} /> Show all</> : <><EyeOff size={12} /> Hide all</>}
+                            {allHidden ? <><Eye size={12} /> Click to Show All</> : <><EyeOff size={12} /> Click to Hide All</>}
                           </button>
                         )
                       })()}
@@ -617,24 +652,91 @@ export default function DataPage() {
 
         {/* Results */}
         <div
-          className={tableFullscreen ? 'fixed inset-0 z-50 p-6 overflow-auto' : ''}
-          style={tableFullscreen ? { background: '#0A0A10' } : undefined}
+          className={tableFullscreen ? 'fixed inset-0 z-50 overflow-y-auto p-6' : ''}
+          style={tableFullscreen ? { background: tableTheme === 'light' ? '#F7F8F6' : '#0A0A10' } : undefined}
         >
-        <MangroveCard variant="sand" className={tableFullscreen ? 'h-full flex flex-col' : ''}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">Results</span>
-            <button
-              type="button"
-              onClick={() => setTableFullscreen(f => !f)}
-              className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
-              title={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
-              aria-label={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
-            >
-              {tableFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-            </button>
+        <MangroveCard variant="sand" theme={tableTheme} className={tableFullscreen ? 'min-h-full' : ''}>
+          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+            <div className="min-w-0">
+              <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">Results</span>
+              {!loading && !error && (
+                <p className="text-[12px] text-muted mt-1 leading-relaxed">
+                  Found <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
+                  {total === 1 ? 'record' : 'records'}
+                  {(activeConditions.length > 0 || applied.search) && ' from '}
+                  {activeConditions.map((f, i) => (
+                    <span key={i}>
+                      {i > 0 && <span className="text-muted">, </span>}
+                      <span className="font-mono text-[11px] text-neutral">{describeFilter(f)}</span>
+                    </span>
+                  ))}
+                  {applied.search && (
+                    <span>
+                      {activeConditions.length > 0 && <span className="text-muted"> and </span>}
+                      keyword <span className="font-mono text-[11px] text-neutral">“{applied.search}”</span>
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setTableTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+                className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
+                title={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
+                aria-label={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
+              >
+                {tableTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInsightsOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors"
+                title="Visualize the current filtered records"
+              >
+                <BarChart3 size={13} /> View Data Insight
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting || total === 0 || total > MAX_EXPORT_ROWS}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                title={
+                  total > MAX_EXPORT_ROWS
+                    ? `Too many records (${total.toLocaleString()}). Export is limited to ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters first.`
+                    : 'Export the current filtered records + active fields to XLSX'
+                }
+              >
+                {exporting
+                  ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
+                  : <><Download size={13} /> Export XLSX</>}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableFullscreen(f => !f)}
+                className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
+                title={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
+                aria-label={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
+              >
+                {tableFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+              </button>
+            </div>
           </div>
 
           {error && <p className="text-[13px] text-rose mb-4">{error}</p>}
+          {!loading && !error && total > MAX_EXPORT_ROWS && (
+            <p className="text-[12px] text-amber-500 mb-4">
+              XLSX export is disabled above {MAX_EXPORT_ROWS.toLocaleString()} records (current view: {total.toLocaleString()}). Add filters or a keyword to narrow the results, then export.
+            </p>
+          )}
+          {exportError && <p className="text-[13px] text-rose mb-4">Export failed: {exportError}</p>}
+          {exporting && exportProgress && (
+            <p className="text-[12px] text-muted mb-4">
+              Fetching records for export… {exportProgress.loaded.toLocaleString()} / {exportProgress.total.toLocaleString()}
+            </p>
+          )}
 
           <Table
             columns={visibleColumns as Parameters<typeof Table>[0]['columns']}
@@ -644,7 +746,7 @@ export default function DataPage() {
             emptyMessage="No observations match. Adjust the search or filters."
           />
 
-          <div className="flex items-center justify-between mt-4 text-[12px] text-neutral/70">
+          <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
             <span>{total === 0 ? '0 records' : `${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()}`}</span>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>Previous</Button>
@@ -654,6 +756,12 @@ export default function DataPage() {
         </MangroveCard>
         </div>
       </div>
+
+      <InsightsModal
+        open={insightsOpen}
+        onClose={() => setInsightsOpen(false)}
+        query={{ search: applied.search, filters: applied.filters }}
+      />
     </div>
   )
 }
