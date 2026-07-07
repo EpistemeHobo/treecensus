@@ -7,7 +7,7 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
-import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download } from 'lucide-react'
+import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange } from 'lucide-react'
 import FIELD_DICTIONARY from '@/data/field-dictionary.json'
 import { InsightsModal } from '@/components/data/InsightsModal'
 import { exportObservationsXlsx, MAX_EXPORT_ROWS } from '@/lib/export-xlsx'
@@ -22,14 +22,14 @@ interface Filter { field: string; op: FilterOp; value: string }
 const PAGE_SIZE = 50
 
 const OPERATORS: { value: FilterOp; label: string; noValue?: boolean }[] = [
-  { value: 'contains',    label: 'contains' },
-  { value: 'equals',      label: 'equals' },
-  { value: 'not_equals',  label: 'does not equal' },
+  { value: 'contains', label: 'contains' },
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'does not equal' },
   { value: 'starts_with', label: 'starts with' },
-  { value: 'gt',          label: '> (number)' },
-  { value: 'lt',          label: '< (number)' },
-  { value: 'not_empty',   label: 'is not empty', noValue: true },
-  { value: 'empty',       label: 'is empty',     noValue: true },
+  { value: 'gt', label: '> (number)' },
+  { value: 'lt', label: '< (number)' },
+  { value: 'not_empty', label: 'is not empty', noValue: true },
+  { value: 'empty', label: 'is empty', noValue: true },
 ]
 
 const TYPE_BADGE: Record<string, 'coral' | 'success' | 'violet' | 'default'> = {
@@ -134,12 +134,12 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const popRef   = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
 
   const groups = useMemo(() => {
     const groupOf = new Map<string, string>()
     for (const g of FIELD_GROUPS) for (const f of g.fields) groupOf.set(f, g.name)
-    const order  = [...FIELD_GROUPS.map(g => g.name), 'Miscellaneous']
+    const order = [...FIELD_GROUPS.map(g => g.name), 'Miscellaneous']
     const bucket = new Map<string, string[]>(order.map(n => [n, []]))
     for (const f of fields) {
       const g = groupOf.get(f) ?? 'Miscellaneous'
@@ -201,8 +201,8 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
           ref={popRef}
           className="dark fixed z-50 rounded-sm border border-[rgba(255,255,255,0.10)] shadow-2xl overflow-hidden"
           style={{
-            left:  anchor.left,
-            top:   anchor.bottom + 4,
+            left: anchor.left,
+            top: anchor.bottom + 4,
             width: Math.max(anchor.width, 288),
             background: '#0A0A10',
           }}
@@ -274,8 +274,12 @@ export default function DataPage() {
   const [schemaFields, setSchemaFields] = useState<string[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [draftFilters, setDraftFilters] = useState<Filter[]>([])
-  const [applied, setApplied] = useState<{ search: string; filters: Filter[] }>({ search: '', filters: [] })
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [applied, setApplied] = useState<{ search: string; filters: Filter[]; dateFrom: string; dateTo: string }>({ search: '', filters: [], dateFrom: '', dateTo: '' })
   const [page, setPage] = useState(0)
+
+  const dateRangeInvalid = Boolean(dateFrom && dateTo && dateFrom > dateTo)
 
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set())
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
@@ -304,7 +308,7 @@ export default function DataPage() {
     fetch('/api/data/schema')
       .then(r => r.json())
       .then(j => { if (j.data) setSchemaFields(j.data.columns.map((c: { name: string }) => c.name)) })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   // Fetch rows whenever the applied query or page changes.
@@ -317,6 +321,8 @@ export default function DataPage() {
       body: JSON.stringify({
         search: applied.search,
         filters: applied.filters.filter(f => f.field),
+        dateFrom: applied.dateFrom,
+        dateTo: applied.dateTo,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       }),
@@ -341,6 +347,18 @@ export default function DataPage() {
     }, 350)
     return () => clearTimeout(t)
   }, [searchInput])
+
+  // Debounce the time-frame range into the applied query (1.5s), so it fires
+  // alongside the current filters + keyword. Skipped while the range is invalid.
+  useEffect(() => {
+    if (dateRangeInvalid) return
+    const t = setTimeout(() => {
+      if (applied.dateFrom === dateFrom && applied.dateTo === dateTo) return
+      setApplied(a => ({ ...a, dateFrom, dateTo }))
+      setPage(0)
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [dateFrom, dateTo, dateRangeInvalid, applied.dateFrom, applied.dateTo])
 
   function applyFilters() {
     setApplied(a => ({ ...a, filters: draftFilters }))
@@ -449,7 +467,7 @@ export default function DataPage() {
     setExporting(true); setExportError(''); setExportProgress({ loaded: 0, total })
     try {
       await exportObservationsXlsx({
-        query: { search: applied.search, filters: applied.filters },
+        query: { search: applied.search, filters: applied.filters, dateFrom: applied.dateFrom, dateTo: applied.dateTo },
         columns: visibleColumns.map(c => ({ key: c.key, label: c.label })),
         onProgress: (loaded, t) => setExportProgress({ loaded, total: t }),
       })
@@ -490,7 +508,7 @@ export default function DataPage() {
                 {activeFilterCount > 0 && <Badge variant="coral">{activeFilterCount}</Badge>}
               </span>
               <span
-                className="text-[10px] text-neutral/50 mt-0.5"
+                className="text-[10px] text-white/50 mt-0.5"
                 title={`Suggestions dictionary generated ${DICT_GENERATED_AT}`}
               >
                 suggestions from {new Date(DICT_GENERATED_AT).toLocaleDateString()}
@@ -551,6 +569,55 @@ export default function DataPage() {
               <Button variant="ghost" size="sm" onClick={clearFilters}>Clear</Button>
             )}
           </div>
+
+          {/* Time frame — a date range on the record's added date. Applied
+              automatically 1.5s after a change, together with filters + keyword. */}
+          <div className="mt-5 pt-5 border-t border-dim">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarRange size={14} className="text-coral/90" />
+              <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">Time frame</span>
+              <span className="text-[10px] text-muted">record added date</span>
+            </div>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-widest text-muted">Begin date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  max={dateTo || undefined}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="px-3 py-2 bg-bg border border-dim rounded-sm text-[13px] text-neutral outline-none focus:border-coral/40 transition-colors [color-scheme:dark]"
+                />
+              </div>
+              <span className="text-muted pb-2.5">→</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-widest text-muted">Finish date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="px-3 py-2 bg-bg border border-dim rounded-sm text-[13px] text-neutral outline-none focus:border-coral/40 transition-colors [color-scheme:dark]"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => { setDateFrom(''); setDateTo('') }}
+                  className="pb-2 p-2 text-muted hover:text-rose transition-colors"
+                  title="Clear time frame"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            {dateRangeInvalid && (
+              <p className="text-[11px] text-rose mt-2">Begin date must be on or before the finish date.</p>
+            )}
+            <p className="text-[11px] text-muted mt-2">
+              Applies automatically ~1.5s after you pick a date, alongside your filters and keyword. Dates are parsed flexibly (ISO, D/M/Y, M/D/Y, D-Mon-Y, epoch). While no records have a parseable added-date, the time frame is ignored rather than zeroing out your results.
+            </p>
+          </div>
         </MangroveCard>
 
         {/* Field picker — collapsible folders per group, chips per field. */}
@@ -600,19 +667,19 @@ export default function DataPage() {
                             style={
                               allHidden
                                 ? {
-                                    // Show all → bright glowing green, like a firefly.
-                                    color: '#7CFF6B',
-                                    textShadow: '0 0 6px rgba(124,255,107,0.75), 0 0 14px rgba(124,255,107,0.35)',
-                                    filter: 'drop-shadow(0 0 4px rgba(124,255,107,0.6))',
-                                  }
+                                  // Show all → bright glowing green, like a firefly.
+                                  color: '#7CFF6B',
+                                  textShadow: '0 0 6px rgba(124,255,107,0.75), 0 0 14px rgba(124,255,107,0.35)',
+                                  filter: 'drop-shadow(0 0 4px rgba(124,255,107,0.6))',
+                                }
                                 : {
-                                    // Hide all → bright saturated red glyph with a dimmer red halo.
-                                    // Mirrors the Show-all lime treatment (bright core, softer aura)
-                                    // so contrast against the glow stays high.
-                                    color: '#FF3B3B',
-                                    textShadow: '0 0 6px rgba(255,59,59,0.80), 0 0 14px rgba(255,59,59,0.40)',
-                                    filter: 'drop-shadow(0 0 4px rgba(255,59,59,0.65))',
-                                  }
+                                  // Hide all → bright saturated red glyph with a dimmer red halo.
+                                  // Mirrors the Show-all lime treatment (bright core, softer aura)
+                                  // so contrast against the glow stays high.
+                                  color: '#FF3B3B',
+                                  textShadow: '0 0 6px rgba(255,59,59,0.80), 0 0 14px rgba(255,59,59,0.40)',
+                                  filter: 'drop-shadow(0 0 4px rgba(255,59,59,0.65))',
+                                }
                             }
                             title={allHidden ? 'Show all in group' : 'Hide all in group'}
                           >
@@ -630,11 +697,10 @@ export default function DataPage() {
                               key={f}
                               type="button"
                               onClick={() => toggleField(f)}
-                              className={`px-2 py-1 text-[11px] font-mono rounded-sm border transition-colors ${
-                                visible
+                              className={`px-2 py-1 text-[11px] font-mono rounded-sm border transition-colors ${visible
                                   ? 'bg-coral/10 border-coral/30 text-neutral'
-                                  : 'bg-bg border-dim text-muted/60 line-through'
-                              }`}
+                                  : 'bg-bg border-dim text-gray-300 line-through'
+                                }`}
                               title={visible ? 'Click to hide' : 'Click to show'}
                             >
                               {f}
@@ -655,112 +721,125 @@ export default function DataPage() {
           className={tableFullscreen ? 'fixed inset-0 z-50 overflow-y-auto p-6' : ''}
           style={tableFullscreen ? { background: tableTheme === 'light' ? '#F7F8F6' : '#0A0A10' } : undefined}
         >
-        <MangroveCard variant="sand" theme={tableTheme} className={tableFullscreen ? 'min-h-full' : ''}>
-          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
-            <div className="min-w-0">
-              <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">Results</span>
-              {!loading && !error && (
-                <p className="text-[12px] text-muted mt-1 leading-relaxed">
-                  Found <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
-                  {total === 1 ? 'record' : 'records'}
-                  {(activeConditions.length > 0 || applied.search) && ' from '}
-                  {activeConditions.map((f, i) => (
-                    <span key={i}>
-                      {i > 0 && <span className="text-muted">, </span>}
-                      <span className="font-mono text-[11px] text-neutral">{describeFilter(f)}</span>
-                    </span>
-                  ))}
-                  {applied.search && (
-                    <span>
-                      {activeConditions.length > 0 && <span className="text-muted"> and </span>}
-                      keyword <span className="font-mono text-[11px] text-neutral">“{applied.search}”</span>
-                    </span>
-                  )}
-                </p>
-              )}
+          <MangroveCard variant="sand" theme={tableTheme} className={tableFullscreen ? 'min-h-full' : ''}>
+            <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+              <div className="min-w-0">
+                <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">Results</span>
+                {!loading && !error && (
+                  <p className="text-[12px] text-muted mt-1 leading-relaxed">
+                    Found <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
+                    {total === 1 ? 'record' : 'records'}
+                    {(activeConditions.length > 0 || applied.search || applied.dateFrom || applied.dateTo) && ' from '}
+                    {activeConditions.map((f, i) => (
+                      <span key={i}>
+                        {i > 0 && <span className="text-muted">, </span>}
+                        <span className="font-mono text-[11px] text-neutral">{describeFilter(f)}</span>
+                      </span>
+                    ))}
+                    {applied.search && (
+                      <span>
+                        {activeConditions.length > 0 && <span className="text-muted"> and </span>}
+                        keyword <span className="font-mono text-[11px] text-neutral">“{applied.search}”</span>
+                      </span>
+                    )}
+                    {(applied.dateFrom || applied.dateTo) && (
+                      <span>
+                        {(activeConditions.length > 0 || applied.search) && <span className="text-muted"> and </span>}
+                        added{' '}
+                        <span className="font-mono text-[11px] text-neutral">
+                          {applied.dateFrom && applied.dateTo
+                            ? `between ${applied.dateFrom} and ${applied.dateTo}`
+                            : applied.dateFrom
+                              ? `on/after ${applied.dateFrom}`
+                              : `on/before ${applied.dateTo}`}
+                        </span>
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTableTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+                  className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
+                  title={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
+                  aria-label={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
+                >
+                  {tableTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInsightsOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors"
+                  title="Visualize the current filtered records"
+                >
+                  <BarChart3 size={13} /> View Data Insight
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={exporting || total === 0 || total > MAX_EXPORT_ROWS}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                  title={
+                    total > MAX_EXPORT_ROWS
+                      ? `Too many records (${total.toLocaleString()}). Export is limited to ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters first.`
+                      : 'Export the current filtered records + active fields to XLSX'
+                  }
+                >
+                  {exporting
+                    ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
+                    : <><Download size={13} /> Export XLSX</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTableFullscreen(f => !f)}
+                  className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
+                  title={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
+                  aria-label={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
+                >
+                  {tableFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setTableTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-                className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
-                title={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
-                aria-label={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
-              >
-                {tableTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => setInsightsOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors"
-                title="Visualize the current filtered records"
-              >
-                <BarChart3 size={13} /> View Data Insight
-              </button>
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting || total === 0 || total > MAX_EXPORT_ROWS}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                title={
-                  total > MAX_EXPORT_ROWS
-                    ? `Too many records (${total.toLocaleString()}). Export is limited to ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters first.`
-                    : 'Export the current filtered records + active fields to XLSX'
-                }
-              >
-                {exporting
-                  ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
-                  : <><Download size={13} /> Export XLSX</>}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTableFullscreen(f => !f)}
-                className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
-                title={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
-                aria-label={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
-              >
-                {tableFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-              </button>
+            {error && <p className="text-[13px] text-rose mb-4">{error}</p>}
+            {!loading && !error && total > MAX_EXPORT_ROWS && (
+              <p className="text-[12px] text-amber-500 mb-4">
+                XLSX export is disabled above {MAX_EXPORT_ROWS.toLocaleString()} records (current view: {total.toLocaleString()}). Add filters or a keyword to narrow the results, then export.
+              </p>
+            )}
+            {exportError && <p className="text-[13px] text-rose mb-4">Export failed: {exportError}</p>}
+            {exporting && exportProgress && (
+              <p className="text-[12px] text-muted mb-4">
+                Fetching records for export… {exportProgress.loaded.toLocaleString()} / {exportProgress.total.toLocaleString()}
+              </p>
+            )}
+
+            <Table
+              columns={visibleColumns as Parameters<typeof Table>[0]['columns']}
+              rows={rows as unknown as Record<string, unknown>[]}
+              loading={loading}
+              keyField="map_record_id"
+              emptyMessage="No observations match. Adjust the search or filters."
+            />
+
+            <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
+              <span>{total === 0 ? '0 records' : `${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()}`}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>Previous</Button>
+                <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>Next</Button>
+              </div>
             </div>
-          </div>
-
-          {error && <p className="text-[13px] text-rose mb-4">{error}</p>}
-          {!loading && !error && total > MAX_EXPORT_ROWS && (
-            <p className="text-[12px] text-amber-500 mb-4">
-              XLSX export is disabled above {MAX_EXPORT_ROWS.toLocaleString()} records (current view: {total.toLocaleString()}). Add filters or a keyword to narrow the results, then export.
-            </p>
-          )}
-          {exportError && <p className="text-[13px] text-rose mb-4">Export failed: {exportError}</p>}
-          {exporting && exportProgress && (
-            <p className="text-[12px] text-muted mb-4">
-              Fetching records for export… {exportProgress.loaded.toLocaleString()} / {exportProgress.total.toLocaleString()}
-            </p>
-          )}
-
-          <Table
-            columns={visibleColumns as Parameters<typeof Table>[0]['columns']}
-            rows={rows as unknown as Record<string, unknown>[]}
-            loading={loading}
-            keyField="map_record_id"
-            emptyMessage="No observations match. Adjust the search or filters."
-          />
-
-          <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
-            <span>{total === 0 ? '0 records' : `${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()}`}</span>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>Previous</Button>
-              <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>Next</Button>
-            </div>
-          </div>
-        </MangroveCard>
+          </MangroveCard>
         </div>
       </div>
 
       <InsightsModal
         open={insightsOpen}
         onClose={() => setInsightsOpen(false)}
-        query={{ search: applied.search, filters: applied.filters }}
+        query={{ search: applied.search, filters: applied.filters, dateFrom: applied.dateFrom, dateTo: applied.dateTo }}
       />
     </div>
   )

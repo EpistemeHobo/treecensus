@@ -30,7 +30,7 @@ interface Filter { field: string; op: string; value: string }
 interface InsightsModalProps {
   open: boolean
   onClose: () => void
-  query: { search: string; filters: Filter[] }
+  query: { search: string; filters: Filter[]; dateFrom?: string; dateTo?: string }
 }
 
 // Firefly-green through sand-amber — the app's two accent hues plus supporting tones.
@@ -152,7 +152,12 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
     fetch('/api/data/insights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ search: query.search, filters: query.filters.filter(f => f.field) }),
+      body: JSON.stringify({
+        search: query.search,
+        filters: query.filters.filter(f => f.field),
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+      }),
     })
       .then(r => r.json())
       .then(j => {

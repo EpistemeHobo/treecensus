@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
     const result = await filterObservations({
       search: typeof body.search === 'string' ? body.search : undefined,
       filters: Array.isArray(body.filters) ? body.filters : [],
+      dateFrom: typeof body.dateFrom === 'string' && body.dateFrom ? body.dateFrom : undefined,
+      dateTo: typeof body.dateTo === 'string' && body.dateTo ? body.dateTo : undefined,
       limit,
       offset,
     })

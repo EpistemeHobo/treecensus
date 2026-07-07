@@ -38,7 +38,7 @@ export const MAX_EXPORT_ROWS = 5000
  * `onProgress(loaded, total)` is called after each page so the UI can show progress.
  */
 export async function exportObservationsXlsx(opts: {
-  query: { search: string; filters: Filter[] }
+  query: { search: string; filters: Filter[]; dateFrom?: string; dateTo?: string }
   columns: ExportColumn[]           // active/visible columns, in UI order
   onProgress?: (loaded: number, total: number) => void
 }): Promise<{ rowCount: number }> {
@@ -56,6 +56,8 @@ export async function exportObservationsXlsx(opts: {
       body: JSON.stringify({
         search: query.search,
         filters: query.filters.filter(f => f.field),
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
         limit: FETCH_PAGE,
         offset,
       }),

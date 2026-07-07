@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
     const insights = await getObservationInsights({
       search: typeof body.search === 'string' ? body.search : undefined,
       filters: Array.isArray(body.filters) ? body.filters : [],
+      dateFrom: typeof body.dateFrom === 'string' && body.dateFrom ? body.dateFrom : undefined,
+      dateTo: typeof body.dateTo === 'string' && body.dateTo ? body.dateTo : undefined,
     })
     return NextResponse.json({ data: insights })
   } catch (err) {

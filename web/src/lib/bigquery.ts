@@ -237,6 +237,45 @@ export interface ObservationFilter {
   value?: string
 }
 
+// The STRING column the Data page "time frame" range filters on (record added date).
+const DATE_RANGE_FIELD = 'added_time'
+
+// Intelligent, format-tolerant parse of a free-text date/timestamp STRING column
+// into a TIMESTAMP. Tries the formats field data realistically arrives in and
+// returns NULL (never errors) when none match, so a row with an unparseable or
+// empty value is simply excluded from a range rather than blowing up the query.
+function flexibleTimestampExpr(col: string): string {
+  const s = `CAST(${col} AS STRING)`
+  return `COALESCE(
+    SAFE_CAST(${s} AS TIMESTAMP),
+    SAFE.PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', ${s}),
+    SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S', ${s}),
+    SAFE.PARSE_TIMESTAMP('%d/%m/%Y %H:%M:%S', ${s}),
+    SAFE.PARSE_TIMESTAMP('%d/%m/%Y', ${s}),
+    SAFE.PARSE_TIMESTAMP('%m/%d/%Y %H:%M:%S', ${s}),
+    SAFE.PARSE_TIMESTAMP('%m/%d/%Y', ${s}),
+    SAFE.PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', ${s}),
+    SAFE.PARSE_TIMESTAMP('%d-%b-%Y', ${s}),
+    SAFE.PARSE_TIMESTAMP('%d %b %Y', ${s}),
+    IF(REGEXP_CONTAINS(${s}, r'^[0-9]{13}$'), TIMESTAMP_MILLIS(SAFE_CAST(${s} AS INT64)), NULL),
+    IF(REGEXP_CONTAINS(${s}, r'^[0-9]{10}$'), TIMESTAMP_SECONDS(SAFE_CAST(${s} AS INT64)), NULL)
+  )`
+}
+
+// Whether DATE_RANGE_FIELD has ANY parseable date in the table. Used so the time
+// frame is skipped (not applied as a 0-matching predicate) while the column is
+// empty. Memoized only once true — re-checked while false so it "wakes up" as
+// soon as dated rows land, without needing a server restart.
+let _dateColumnHasData = false
+async function dateColumnHasData(): Promise<boolean> {
+  if (_dateColumnHasData) return true
+  const [rows] = await bq.query({
+    query: `SELECT COUNT(*) AS n FROM \`${OBSERVATIONS_FQN}\` WHERE ${flexibleTimestampExpr(DATE_RANGE_FIELD)} IS NOT NULL`,
+  })
+  _dateColumnHasData = Number((rows[0] as { n: number | string }).n) > 0
+  return _dateColumnHasData
+}
+
 // Column names are interpolated into SQL, so they MUST be validated against the
 // real schema (allow-list). Values are always passed as query parameters.
 let _fieldSet: Set<string> | null = null
@@ -254,6 +293,8 @@ async function observationFieldSet(): Promise<Set<string>> {
 async function buildObservationWhere(opts: {
   search?: string
   filters?: ObservationFilter[]
+  dateFrom?: string
+  dateTo?: string
 }): Promise<{ where: string; params: Record<string, unknown> }> {
   const fieldSet = await observationFieldSet()
 
@@ -285,12 +326,32 @@ async function buildObservationWhere(opts: {
     params.search = `%${opts.search.toLowerCase()}%`
   }
 
+  // Time-frame range (inclusive of both endpoints' full day), on added_time.
+  // Frontend sends 'YYYY-MM-DD'; the stored value is parsed with the flexible
+  // parser. The range is applied ONLY if the column actually has parseable dates,
+  // so an all-empty date column never silently zeroes out the results.
+  if (opts.dateFrom || opts.dateTo) {
+    if (await dateColumnHasData()) {
+      const dexpr = flexibleTimestampExpr(DATE_RANGE_FIELD)
+      if (opts.dateFrom) {
+        conditions.push(`${dexpr} >= TIMESTAMP(@dateFrom)`)
+        params.dateFrom = opts.dateFrom
+      }
+      if (opts.dateTo) {
+        conditions.push(`${dexpr} < TIMESTAMP(DATE_ADD(DATE(@dateTo), INTERVAL 1 DAY))`)
+        params.dateTo = opts.dateTo
+      }
+    }
+  }
+
   return { where: conditions.join(' AND '), params }
 }
 
 export async function filterObservations(opts: {
   search?: string
   filters?: ObservationFilter[]
+  dateFrom?: string
+  dateTo?: string
   limit?: number
   offset?: number
 }): Promise<{ rows: ObservationRow[]; total: number }> {
@@ -345,6 +406,8 @@ export interface ObservationInsights {
 export async function getObservationInsights(opts: {
   search?: string
   filters?: ObservationFilter[]
+  dateFrom?: string
+  dateTo?: string
 }): Promise<ObservationInsights> {
   const { where, params } = await buildObservationWhere(opts)
   const FROM = `\`${OBSERVATIONS_FQN}\` WHERE ${where}`
