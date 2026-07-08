@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/LanguageContext'
+import type { TranslationKey } from '@/i18n/translations'
 import { User as UserIcon, KeyRound } from 'lucide-react'
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -24,11 +27,11 @@ export default function SettingsPage() {
     setSuccess('')
 
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.')
+      setError(t('settings.min8'))
       return
     }
     if (newPassword !== confirmPassword) {
-      setError('New password and confirmation do not match.')
+      setError(t('settings.mismatch'))
       return
     }
 
@@ -41,14 +44,14 @@ export default function SettingsPage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? 'Could not update password.')
+        throw new Error(err.error ?? t('settings.updateFailed'))
       }
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setSuccess('Password updated successfully.')
+      setSuccess(t('settings.updated'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update password.')
+      setError(err instanceof Error ? err.message : t('settings.updateFailed'))
     } finally {
       setLoading(false)
     }
@@ -56,45 +59,45 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col flex-1">
-      <TopBar title="Settings" subtitle="Manage your account" />
+      <TopBar title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto max-w-2xl">
         <Card>
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
             <span className="flex items-center gap-2">
-              <UserIcon size={14} className="text-muted" /> Profile
+              <UserIcon size={14} className="text-muted" /> {t('settings.profile')}
             </span>
           </h2>
           <div className="flex flex-col gap-3 text-[13px]">
             <div className="flex justify-between border-b border-white/[0.04] pb-2">
-              <span className="text-muted uppercase tracking-widest text-[11px]">Name</span>
+              <span className="text-muted uppercase tracking-widest text-[11px]">{t('settings.name')}</span>
               <span className="text-neutral">{user?.name ?? '—'}</span>
             </div>
             <div className="flex justify-between border-b border-white/[0.04] pb-2">
-              <span className="text-muted uppercase tracking-widest text-[11px]">Email</span>
+              <span className="text-muted uppercase tracking-widest text-[11px]">{t('settings.email')}</span>
               <span className="text-neutral">{user?.email ?? '—'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted uppercase tracking-widest text-[11px]">Role</span>
+              <span className="text-muted uppercase tracking-widest text-[11px]">{t('settings.role')}</span>
               <Badge variant={user?.role === 'admin' ? 'coral' : user?.role === 'analyst' ? 'violet' : 'default'}>
-                {user?.role?.replace('_', ' ') ?? '—'}
+                {user?.role ? t(`role.${user.role}` as TranslationKey) : '—'}
               </Badge>
             </div>
           </div>
           <p className="text-[12px] text-muted mt-4">
-            Name, email, and role can only be changed by an administrator.
+            {t('settings.adminOnlyNote')}
           </p>
         </Card>
 
         <Card>
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
             <span className="flex items-center gap-2">
-              <KeyRound size={14} className="text-muted" /> Change password
+              <KeyRound size={14} className="text-muted" /> {t('settings.changePassword')}
             </span>
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
-              label="Current password"
+              label={t('settings.currentPassword')}
               type="password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
@@ -102,16 +105,16 @@ export default function SettingsPage() {
               autoComplete="current-password"
             />
             <Input
-              label="New password"
+              label={t('settings.newPassword')}
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
+              placeholder={t('settings.min8Ph')}
               required
               autoComplete="new-password"
             />
             <Input
-              label="Confirm new password"
+              label={t('settings.confirmPassword')}
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
@@ -131,7 +134,7 @@ export default function SettingsPage() {
             )}
 
             <Button type="submit" loading={loading} className="self-start">
-              Update password
+              {t('settings.update')}
             </Button>
           </form>
         </Card>

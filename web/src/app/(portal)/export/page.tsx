@@ -5,8 +5,10 @@ import { TopBar } from '@/components/layout/TopBar'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Download } from 'lucide-react'
+import { useI18n } from '@/context/LanguageContext'
 
 export default function ExportPage() {
+  const { t } = useI18n()
   const [siteId, setSiteId] = useState('')
   const [species, setSpecies] = useState('')
 
@@ -19,16 +21,16 @@ export default function ExportPage() {
 
   return (
     <div className="flex flex-col flex-1">
-      <TopBar title="Export" subtitle="Download filtered census data as CSV or Excel" />
+      <TopBar title={t('export.title')} subtitle={t('export.subtitle')} />
 
       <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto max-w-2xl">
         <Card>
-          <h2 className="text-[14px] font-semibold text-neutral mb-5">Configure Export</h2>
+          <h2 className="text-[14px] font-semibold text-neutral mb-5">{t('export.configure')}</h2>
 
           <div className="flex flex-col gap-4">
             {[
-              { label: 'Site ID (optional)',      val: siteId,  set: setSiteId,  ph: 'Leave blank for all sites'   },
-              { label: 'Species Code (optional)', val: species, set: setSpecies, ph: 'Leave blank for all species' },
+              { label: t('export.siteId'),      val: siteId,  set: setSiteId,  ph: t('export.siteIdPh')      },
+              { label: t('export.speciesCode'), val: species, set: setSpecies, ph: t('export.speciesCodePh') },
             ].map(f => (
               <div key={f.label} className="flex flex-col gap-1.5">
                 <label className="text-[11px] text-muted uppercase tracking-widest font-medium">{f.label}</label>
@@ -45,15 +47,15 @@ export default function ExportPage() {
 
           <div className="flex gap-3 mt-6 pt-5 border-t border-dim">
             <a href={buildUrl('csv')}>
-              <Button><Download size={14} />Export CSV</Button>
+              <Button><Download size={14} />{t('export.csv')}</Button>
             </a>
             <a href={buildUrl('xlsx')}>
-              <Button variant="secondary"><Download size={14} />Export Excel</Button>
+              <Button variant="secondary"><Download size={14} />{t('export.xlsx')}</Button>
             </a>
           </div>
 
           <p className="text-[11px] text-muted/50 mt-3">
-            Exports are capped at 100,000 rows. Use the SQL Query interface for larger datasets.
+            {t('export.cap')}
           </p>
         </Card>
       </div>

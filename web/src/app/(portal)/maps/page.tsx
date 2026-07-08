@@ -1,18 +1,23 @@
+'use client'
+
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
 import { BarChart3, ExternalLink } from 'lucide-react'
+import { useI18n } from '@/context/LanguageContext'
 
 // Looker Studio embed (maps + statistics report).
 const LOOKER_EMBED = 'https://datastudio.google.com/embed/reporting/b2bc645b-119e-425e-9bc2-dc7147e83604/page/p_slwi2rm84d'
 const LOOKER_OPEN = LOOKER_EMBED.replace('/embed/reporting/', '/reporting/')
 
 export default function MapsPage() {
+  const { t } = useI18n()
+
   return (
     <div className="flex flex-col flex-1">
       <TopBar
-        title="Maps & Statistics"
-        subtitle="Geographic distribution and live statistics"
+        title={t('maps.title')}
+        subtitle={t('maps.subtitle')}
         actions={<Badge variant="violet">Looker Studio</Badge>}
       />
 
@@ -22,7 +27,7 @@ export default function MapsPage() {
         <MangroveCard seed={73} className="!p-0 overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f4b36]/70">
             <span className="flex items-center gap-2 text-[12px] uppercase tracking-widest font-semibold text-coral/90">
-              <BarChart3 size={13} /> Census Report
+              <BarChart3 size={13} /> {t('maps.censusReport')}
             </span>
             <a
               href={LOOKER_OPEN}
@@ -30,7 +35,7 @@ export default function MapsPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-[12px] text-neutral/70 hover:text-coral transition-colors"
             >
-              Open in Looker Studio <ExternalLink size={12} />
+              {t('maps.openLooker')} <ExternalLink size={12} />
             </a>
           </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useI18n } from '@/context/LanguageContext'
 
 interface LightningTextProps {
   line1?: string
@@ -12,9 +13,12 @@ interface LightningTextProps {
 // white highlight layer through a vector mask.
 
 export function LightningText({
-  line1 = 'Tree Census',
-  line2 = 'Field Portal',
+  line1,
+  line2,
 }: LightningTextProps) {
+  const { t } = useI18n()
+  const displayLine1 = line1 || t('login.headline1')
+  const displayLine2 = line2 || t('login.headline2')
   const pathRef  = useRef<SVGPathElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
 
@@ -123,14 +127,14 @@ export function LightningText({
 
         {/* Layer 1 — gradient base text */}
         <g fontFamily="'Fredericka the Great', serif" fontWeight="400" fontSize="76" letterSpacing="1">
-          <text x="50%" y="82"  textAnchor="middle" fill="url(#tc-base-grad)">{line1}</text>
-          <text x="50%" y="178" textAnchor="middle" fill="url(#tc-base-grad)">{line2}</text>
+          <text x="50%" y="82"  textAnchor="middle" fill="url(#tc-base-grad)">{displayLine1}</text>
+          <text x="50%" y="178" textAnchor="middle" fill="url(#tc-base-grad)">{displayLine2}</text>
         </g>
 
         {/* Layer 2 — white highlight revealed by sweep mask */}
         <g mask="url(#tc-lightning-mask)" fontFamily="'Fredericka the Great', serif" fontWeight="400" fontSize="76" letterSpacing="1">
-          <text x="50%" y="82"  textAnchor="middle" fill="#ffffff">{line1}</text>
-          <text x="50%" y="178" textAnchor="middle" fill="#ffffff">{line2}</text>
+          <text x="50%" y="82"  textAnchor="middle" fill="#ffffff">{displayLine1}</text>
+          <text x="50%" y="178" textAnchor="middle" fill="#ffffff">{displayLine2}</text>
         </g>
       </svg>
     </div>

@@ -11,6 +11,9 @@ interface DictField {
   unit: string
   appliesTo: string
   description: string
+  th_label?: string | null
+  th_description?: string | null
+  th_unit?: string | null
 }
 
 interface Filter { field: string; op: string; value: string }
@@ -18,7 +21,7 @@ interface Filter { field: string; op: string; value: string }
 export interface ExportColumn { key: string; label: string }
 
 const DICT_BY_NAME = new Map<string, DictField>(
-  (DATA_DICTIONARY.fields as DictField[]).map(f => [f.name, f]),
+  (DATA_DICTIONARY.fields as unknown as DictField[]).map(f => [f.name, f]),
 )
 
 const FETCH_PAGE = 1000
@@ -40,9 +43,10 @@ export const MAX_EXPORT_ROWS = 5000
 export async function exportObservationsXlsx(opts: {
   query: { search: string; filters: Filter[]; dateFrom?: string; dateTo?: string }
   columns: ExportColumn[]           // active/visible columns, in UI order
+  lang?: 'th' | 'en'                // user's active language
   onProgress?: (loaded: number, total: number) => void
 }): Promise<{ rowCount: number }> {
-  const { query, columns, onProgress } = opts
+  const { query, columns, lang = 'th', onProgress } = opts
   const fieldKeys = columns.map(c => c.key)
 
   // ── Fetch every filtered row ────────────────────────────────────────────────
@@ -78,24 +82,34 @@ export async function exportObservationsXlsx(opts: {
     if (batch.length < FETCH_PAGE) break
   }
 
+  const isTh = lang === 'th'
+
   // ── Sheet 1: records (active fields only) ───────────────────────────────────
-  const recordsHeader = fieldKeys
+  // Use localized labels for headers to match UI columns in case of TH mode
+  const recordsHeader = columns.map(c => c.label)
   const recordsAoa: (string | null)[][] = [
     recordsHeader,
     ...all.map(row => fieldKeys.map(k => row[k] ?? '')),
   ]
   const wsRecords = XLSX.utils.aoa_to_sheet(recordsAoa)
-  wsRecords['!cols'] = fieldKeys.map(k => ({ wch: Math.min(Math.max(k.length + 2, 12), 40) }))
+  wsRecords['!cols'] = columns.map(c => ({ wch: Math.min(Math.max(c.label.length + 4, 12), 40) }))
 
   // ── Sheet 2: dictionary for the active fields ───────────────────────────────
-  const dictHeader = ['Field', 'Label', 'Group', 'Type', 'Unit', 'Applies To', 'Description']
+  const dictHeader = isTh
+    ? ['ฟิลด์', 'ป้ายกำกับ', 'กลุ่ม', 'ประเภท', 'หน่วย', 'ใช้กับ', 'คำอธิบาย']
+    : ['Field', 'Label', 'Group', 'Type', 'Unit', 'Applies To', 'Description']
+
   const dictAoa: string[][] = [
     dictHeader,
     ...fieldKeys.map(k => {
       const d = DICT_BY_NAME.get(k)
-      return d
-        ? [d.name, d.label, d.group, d.type, d.unit, d.appliesTo, d.description]
-        : [k, '', '', '', '', '', '(field not present in data dictionary)']
+      if (!d) {
+        return [k, '', '', '', '', '', isTh ? '(ไม่มีฟิลด์นี้ในพจนานุกรมข้อมูล)' : '(field not present in data dictionary)']
+      }
+      const label = isTh ? (d.th_label || d.label) : d.label
+      const unit = isTh ? (d.th_unit !== null && d.th_unit !== undefined ? d.th_unit : d.unit) : d.unit
+      const desc = isTh ? (d.th_description || d.description) : d.description
+      return [d.name, label, d.group, d.type, unit, d.appliesTo, desc]
     }),
   ]
   const wsDict = XLSX.utils.aoa_to_sheet(dictAoa)
@@ -106,11 +120,12 @@ export async function exportObservationsXlsx(opts: {
 
   // ── Assemble + download ─────────────────────────────────────────────────────
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, wsRecords, 'Records')
-  XLSX.utils.book_append_sheet(wb, wsDict, 'Data Dictionary')
+  XLSX.utils.book_append_sheet(wb, wsRecords, isTh ? 'ข้อมูลการสำรวจ' : 'Records')
+  XLSX.utils.book_append_sheet(wb, wsDict, isTh ? 'พจนานุกรมข้อมูล' : 'Data Dictionary')
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  XLSX.writeFile(wb, `tree-census-export-${stamp}.xlsx`)
+  const filename = isTh ? `mangrove-census-export-${stamp}.xlsx` : `mangrove-census-export-${stamp}.xlsx`
+  XLSX.writeFile(wb, filename)
 
   return { rowCount: all.length }
 }

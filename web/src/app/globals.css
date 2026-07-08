@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fredericka+the+Great&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&family=Fredericka+the+Great&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -39,6 +39,39 @@ body {
   color: var(--c-text);
   font-family: 'Plus Jakarta Sans', sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Thai Language Customizations ────────────────────────────────────────── */
+html[lang="th"],
+html[lang="th"] body,
+html[lang="th"] select,
+html[lang="th"] input,
+html[lang="th"] textarea,
+html[lang="th"] button {
+  font-family: 'Sarabun', sans-serif !important;
+}
+
+/* Scale up base size for rem fonts and adjust specific small text elements */
+html[lang="th"] {
+  font-size: 106%;
+}
+html[lang="th"] .text-\[10px\] { font-size: 11.5px !important; }
+html[lang="th"] .text-\[11px\] { font-size: 12.5px !important; }
+html[lang="th"] .text-\[12px\] { font-size: 13.5px !important; }
+html[lang="th"] .text-\[13px\] { font-size: 14.5px !important; }
+
+/* Force English font and default sizes on auth pages when in English mode */
+html[lang="en"] .auth-page,
+html[lang="en"] .auth-page select,
+html[lang="en"] .auth-page input,
+html[lang="en"] .auth-page textarea,
+html[lang="en"] .auth-page button,
+html[lang="en"] .auth-page * {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+.auth-page svg g,
+.auth-page svg text {
+  font-family: 'Fredericka the Great', serif !important;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

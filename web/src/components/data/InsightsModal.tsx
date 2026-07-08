@@ -8,6 +8,7 @@ import {
   PieChart, Pie, Legend,
 } from 'recharts'
 import { X, BarChart3 } from 'lucide-react'
+import { useI18n } from '@/context/LanguageContext'
 
 interface CategoryCount { label: string; count: number }
 interface Insights {
@@ -41,11 +42,12 @@ const GRID = 'rgba(255,255,255,0.06)'
 function ChartTooltip({ active, payload, label }: {
   active?: boolean; payload?: { value?: number | string; name?: string }[]; label?: string
 }) {
+  const { t } = useI18n()
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-sm border border-[rgba(255,255,255,0.12)] bg-[#0A0A10] px-3 py-2 text-[12px] text-neutral shadow-xl">
       <div className="font-semibold">{label ?? payload[0]?.name}</div>
-      <div className="text-coral">{Number(payload[0]?.value).toLocaleString()} records</div>
+      <div className="text-coral">{t('insights.tooltipRecords', { n: Number(payload[0]?.value).toLocaleString() })}</div>
     </div>
   )
 }
@@ -134,6 +136,7 @@ function fmt(n: number | null, digits = 1): string {
 }
 
 export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
+  const { t } = useI18n()
   const [data, setData] = useState<Insights | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -165,9 +168,10 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
         if (j.error) throw new Error(j.error)
         setData(j.data)
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load insights') })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : t('insights.loadFailed')) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- error text uses the language active at load time
   }, [open, query])
 
   if (!open || typeof document === 'undefined') return null
@@ -186,14 +190,14 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[rgba(255,255,255,0.08)] rounded-t-lg" style={{ background: '#0A0A10' }}>
           <div className="flex items-center gap-2">
             <BarChart3 size={16} className="text-coral" />
-            <h3 className="text-[14px] font-semibold text-neutral">Data Insight</h3>
+            <h3 className="text-[14px] font-semibold text-neutral">{t('insights.title')}</h3>
             {data && (
               <span className="text-[12px] text-muted">
-                — {data.total.toLocaleString()} records in current view
+                {t('insights.recordsInView', { n: data.total.toLocaleString() })}
               </span>
             )}
           </div>
-          <button onClick={onClose} className="text-muted hover:text-neutral transition-colors" aria-label="Close">
+          <button onClick={onClose} className="text-muted hover:text-neutral transition-colors" aria-label={t('common.close')}>
             <X size={18} />
           </button>
         </div>
@@ -202,7 +206,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
           {loading && (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <span className="w-7 h-7 border-2 border-muted border-t-transparent rounded-full animate-spin" />
-              <p className="text-[13px] text-muted">Crunching the filtered records…</p>
+              <p className="text-[13px] text-muted">{t('insights.crunching')}</p>
             </div>
           )}
 
@@ -211,54 +215,54 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
           )}
 
           {data && !loading && data.total === 0 && (
-            <p className="text-[13px] text-muted py-12 text-center">No records in the current view to summarize.</p>
+            <p className="text-[13px] text-muted py-12 text-center">{t('insights.noRecords')}</p>
           )}
 
           {data && !loading && data.total > 0 && (
             <div className="flex flex-col gap-5">
               {/* Summary tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <StatTile label="Records" value={data.total.toLocaleString()} />
-                <StatTile label="Distinct species" value={data.distinctSpecies.toLocaleString()} />
-                <StatTile label="Distinct plots" value={data.distinctPlots.toLocaleString()} />
-                <StatTile label="Avg GBH (cm)" value={fmt(data.avgGbhCm)} />
-                <StatTile label="Avg height (m)" value={fmt(data.avgHeightM)} />
+                <StatTile label={t('insights.records')} value={data.total.toLocaleString()} />
+                <StatTile label={t('insights.distinctSpecies')} value={data.distinctSpecies.toLocaleString()} />
+                <StatTile label={t('insights.distinctPlots')} value={data.distinctPlots.toLocaleString()} />
+                <StatTile label={t('insights.avgGbh')} value={fmt(data.avgGbhCm)} />
+                <StatTile label={t('insights.avgHeight')} value={fmt(data.avgHeightM)} />
               </div>
 
               {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {data.byObservationType.length > 0 && (
-                  <Panel title="Observation types" subtitle="Records by observation_type">
+                  <Panel title={t('insights.obsTypes')} subtitle={t('insights.obsTypesSub')}>
                     <Donut data={data.byObservationType} />
                   </Panel>
                 )}
                 {data.topSpecies.length > 0 && (
-                  <Panel title="Top species" subtitle="Most-recorded species (top 12)">
+                  <Panel title={t('insights.topSpecies')} subtitle={t('insights.topSpeciesSub')}>
                     <HBar data={data.topSpecies} />
                   </Panel>
                 )}
                 {data.gbhHistogram.length > 0 && (
-                  <Panel title="GBH distribution" subtitle="Tree stems by girth-at-breast-height (cm)">
+                  <Panel title={t('insights.gbhDist')} subtitle={t('insights.gbhDistSub')}>
                     <VBar data={data.gbhHistogram} />
                   </Panel>
                 )}
                 {data.byLiveDead.length > 0 && (
-                  <Panel title="Live / dead" subtitle="Tree stems by vitality">
+                  <Panel title={t('insights.liveDead')} subtitle={t('insights.liveDeadSub')}>
                     <Donut data={data.byLiveDead} />
                   </Panel>
                 )}
                 {data.bySizeClass.length > 0 && (
-                  <Panel title="Size classes" subtitle="Tree stems by size_class_code">
+                  <Panel title={t('insights.sizeClasses')} subtitle={t('insights.sizeClassesSub')}>
                     <VBar data={data.bySizeClass} />
                   </Panel>
                 )}
                 {data.byCrownCondition.length > 0 && (
-                  <Panel title="Crown condition" subtitle="Tree stems by crown_condition_code">
+                  <Panel title={t('insights.crownCondition')} subtitle={t('insights.crownConditionSub')}>
                     <VBar data={data.byCrownCondition} />
                   </Panel>
                 )}
                 {data.topPlots.length > 0 && (
-                  <Panel title="Records per plot" subtitle="Busiest plots (top 12)">
+                  <Panel title={t('insights.recordsPerPlot')} subtitle={t('insights.recordsPerPlotSub')}>
                     <HBar data={data.topPlots} />
                   </Panel>
                 )}

@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/LanguageContext'
 import { hasRole } from '@/lib/auth'
 import clsx from 'clsx'
 import type { UserRole } from '@/types'
+import type { TranslationKey } from '@/i18n/translations'
 import {
   LayoutDashboard,
   TreePine,
@@ -19,24 +21,25 @@ import {
 
 interface NavItem {
   href: string
-  label: string
+  label: TranslationKey
   icon: React.ElementType
   minRole: UserRole
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, minRole: 'data_viewer'  },
-  { href: '/data',      label: 'Data',      icon: TreePine,         minRole: 'data_viewer'  },
-  { href: '/maps',      label: 'Maps & Statistics', icon: Map,      minRole: 'data_viewer'  },
-  { href: '/reports',   label: 'Reports',   icon: FileText,         minRole: 'data_manager' },
-  { href: '/export',    label: 'Export',    icon: Download,         minRole: 'data_viewer'  },
-  { href: '/admin',     label: 'Admin',     icon: Shield,           minRole: 'admin'        },
-  { href: '/settings',  label: 'Settings',  icon: SettingsIcon,     minRole: 'field_user'   },
+  { href: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'data_viewer'  },
+  { href: '/data',      label: 'nav.data',      icon: TreePine,        minRole: 'data_viewer'  },
+  { href: '/maps',      label: 'nav.maps',      icon: Map,             minRole: 'data_viewer'  },
+  { href: '/reports',   label: 'nav.reports',   icon: FileText,        minRole: 'data_manager' },
+  { href: '/export',    label: 'nav.export',    icon: Download,        minRole: 'data_viewer'  },
+  { href: '/admin',     label: 'nav.admin',     icon: Shield,          minRole: 'admin'        },
+  { href: '/settings',  label: 'nav.settings',  icon: SettingsIcon,    minRole: 'field_user'   },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { t } = useI18n()
 
   const visibleItems = NAV_ITEMS.filter(
     item => user && hasRole(user.role, item.minRole)
@@ -53,8 +56,8 @@ export function Sidebar() {
             <TreePine size={14} className="text-white" />
           </span>
           <div>
-            <p className="text-[13px] font-semibold text-neutral leading-none">Tree Census</p>
-            <p className="text-[10px] text-muted mt-0.5 tracking-wider uppercase">Portal</p>
+            <p className="text-[13px] font-semibold text-neutral leading-none">{t('brand.title')}</p>
+            <p className="text-[10px] text-muted mt-0.5 tracking-wider uppercase">{t('brand.portal')}</p>
           </div>
         </div>
       </div>
@@ -75,7 +78,7 @@ export function Sidebar() {
               )}
             >
               <item.icon size={15} />
-              {item.label}
+              {t(item.label)}
             </Link>
           )
         })}
@@ -205,7 +208,7 @@ export function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] text-neutral truncate">{user.name ?? user.email}</p>
-              <p className="text-[10px] text-muted uppercase tracking-wider">{user.role.replace('_', ' ')}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider">{t(`role.${user.role}` as TranslationKey)}</p>
             </div>
           </div>
         )}
@@ -215,7 +218,7 @@ export function Sidebar() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-sm text-[13px] text-muted hover:text-neutral hover:bg-ghost transition-all duration-150 w-full"
         >
           <LogOut size={14} />
-          Sign out
+          {t('nav.signOut')}
         </button>
       </div>
     </aside>

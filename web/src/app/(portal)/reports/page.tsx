@@ -1,19 +1,34 @@
+'use client'
+
 import { TopBar } from '@/components/layout/TopBar'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { FileText, Plus } from 'lucide-react'
+import { useI18n } from '@/context/LanguageContext'
+import type { TranslationKey } from '@/i18n/translations'
+
+const SECTION_TYPES: { type: TranslationKey; desc: TranslationKey }[] = [
+  { type: 'reports.summaryTable', desc: 'reports.summaryTableDesc' },
+  { type: 'reports.chart',        desc: 'reports.chartDesc' },
+  { type: 'reports.mapSnapshot',  desc: 'reports.mapSnapshotDesc' },
+  { type: 'reports.textBlock',    desc: 'reports.textBlockDesc' },
+  { type: 'reports.image',        desc: 'reports.imageDesc' },
+  { type: 'reports.signature',    desc: 'reports.signatureDesc' },
+]
 
 export default function ReportsPage() {
+  const { t } = useI18n()
+
   return (
     <div className="flex flex-col flex-1">
       <TopBar
-        title="Reports"
-        subtitle="Generate, edit, and export census reports"
+        title={t('reports.title')}
+        subtitle={t('reports.subtitle')}
         actions={
           <Button size="sm">
             <Plus size={13} />
-            New Report
+            {t('reports.new')}
           </Button>
         }
       />
@@ -23,38 +38,30 @@ export default function ReportsPage() {
         {/* Report list */}
         <Card>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[14px] font-semibold text-neutral">Your Reports</h2>
+            <h2 className="text-[14px] font-semibold text-neutral">{t('reports.your')}</h2>
             <Badge variant="warning">Milestone 9</Badge>
           </div>
 
           <div className="flex flex-col items-center justify-center py-14 text-muted gap-3">
             <FileText size={32} className="opacity-25" />
-            <p className="text-[13px]">No reports yet.</p>
+            <p className="text-[13px]">{t('reports.none')}</p>
             <p className="text-[12px] opacity-60 max-w-xs text-center">
-              The smart report generator will be built in Milestone 9.
-              Reports support summary tables, charts, text, images, and signatures.
+              {t('reports.noneHint')}
             </p>
           </div>
         </Card>
 
         {/* Report builder placeholder */}
         <Card>
-          <h2 className="text-[14px] font-semibold text-neutral mb-4">Report Builder — Section Types</h2>
+          <h2 className="text-[14px] font-semibold text-neutral mb-4">{t('reports.builder')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {[
-              { type: 'Summary Table', desc: 'Auto-generated from selected data' },
-              { type: 'Chart',         desc: 'Bar, pie, or line chart' },
-              { type: 'Map Snapshot',  desc: 'Exported map view of selected trees' },
-              { type: 'Text Block',    desc: 'Manual narrative text input' },
-              { type: 'Image',         desc: 'Upload field photos or diagrams' },
-              { type: 'Signature',     desc: 'Digital signature field for signatories' },
-            ].map(s => (
+            {SECTION_TYPES.map(s => (
               <div
                 key={s.type}
                 className="border border-dashed border-white/[0.08] rounded-sm p-4 opacity-50"
               >
-                <p className="text-[13px] font-medium text-neutral">{s.type}</p>
-                <p className="text-[12px] text-muted mt-1">{s.desc}</p>
+                <p className="text-[13px] font-medium text-neutral">{t(s.type)}</p>
+                <p className="text-[12px] text-muted mt-1">{t(s.desc)}</p>
               </div>
             ))}
           </div>

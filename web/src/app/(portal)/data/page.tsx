@@ -9,8 +9,23 @@ import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange } from 'lucide-react'
 import FIELD_DICTIONARY from '@/data/field-dictionary.json'
+import DATA_DICTIONARY from '@/data/data-dictionary.json'
 import { InsightsModal } from '@/components/data/InsightsModal'
 import { exportObservationsXlsx, MAX_EXPORT_ROWS } from '@/lib/export-xlsx'
+import { useI18n } from '@/context/LanguageContext'
+import type { TranslationKey } from '@/i18n/translations'
+
+const DICT_BY_NAME = new Map<string, {
+  name: string
+  label: string
+  th_label?: string | null
+  description: string
+  th_description?: string | null
+  unit?: string
+  th_unit?: string | null
+}>(
+  (DATA_DICTIONARY.fields as any[]).map(f => [f.name, f])
+)
 
 const VALUE_SUGGESTIONS = FIELD_DICTIONARY.fields as Record<string, string[]>
 const DICT_GENERATED_AT = FIELD_DICTIONARY.generatedAt as string
@@ -21,25 +36,31 @@ interface Filter { field: string; op: FilterOp; value: string }
 
 const PAGE_SIZE = 50
 
-const OPERATORS: { value: FilterOp; label: string; noValue?: boolean }[] = [
-  { value: 'contains', label: 'contains' },
-  { value: 'equals', label: 'equals' },
-  { value: 'not_equals', label: 'does not equal' },
-  { value: 'starts_with', label: 'starts with' },
-  { value: 'gt', label: '> (number)' },
-  { value: 'lt', label: '< (number)' },
-  { value: 'not_empty', label: 'is not empty', noValue: true },
-  { value: 'empty', label: 'is empty', noValue: true },
+const OPERATORS: { value: FilterOp; labelKey: TranslationKey; noValue?: boolean }[] = [
+  { value: 'contains', labelKey: 'op.contains' },
+  { value: 'equals', labelKey: 'op.equals' },
+  { value: 'not_equals', labelKey: 'op.not_equals' },
+  { value: 'starts_with', labelKey: 'op.starts_with' },
+  { value: 'gt', labelKey: 'op.gt' },
+  { value: 'lt', labelKey: 'op.lt' },
+  { value: 'not_empty', labelKey: 'op.not_empty', noValue: true },
+  { value: 'empty', labelKey: 'op.empty', noValue: true },
 ]
+
+// Field-group names are internal identifiers; translate only when displayed.
+type Translate = (key: TranslationKey, vars?: Record<string, string | number>) => string
+function groupLabel(t: Translate, name: string): string {
+  return t(`group.${name}` as TranslationKey)
+}
 
 const TYPE_BADGE: Record<string, 'coral' | 'success' | 'violet' | 'default'> = {
   tree_stem: 'coral', seedling: 'success', woody_debris: 'violet',
 }
 
 // Human-readable description of a condition, e.g. `species_raw contains “oak”`.
-function describeFilter(f: Filter): string {
+function describeFilter(f: Filter, t: Translate): string {
   const op = OPERATORS.find(o => o.value === f.op)
-  const label = op?.label ?? f.op
+  const label = op ? t(op.labelKey) : f.op
   return op?.noValue ? `${f.field} ${label}` : `${f.field} ${label} “${f.value}”`
 }
 
@@ -129,6 +150,7 @@ interface FieldSelectProps {
   fields: string[]
 }
 function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -192,7 +214,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
         value={value}
         onChange={e => { onChange(e.target.value); setSearch(e.target.value); openPopover() }}
         onFocus={openPopover}
-        placeholder="field…"
+        placeholder={t('data.fieldPlaceholder')}
         spellCheck={false}
         className="w-56 px-3 py-2 bg-bg border border-dim rounded-sm text-[13px] font-mono text-neutral outline-none focus:border-coral/40 transition-colors"
       />
@@ -214,7 +236,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search fields…"
+                placeholder={t('data.searchFields')}
                 autoFocus
                 className="w-full pl-7 pr-2 py-1.5 bg-transparent border border-[rgba(255,255,255,0.08)] rounded-sm text-[12px] text-neutral placeholder:text-muted/60 outline-none focus:border-coral/40"
               />
@@ -237,7 +259,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
                       size={11}
                       className={`text-muted transition-transform ${isOpen ? 'rotate-90' : ''}`}
                     />
-                    <span className="text-[11px] font-semibold uppercase tracking-widest text-coral/80">{g.name}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-coral/80">{groupLabel(t, g.name)}</span>
                     <span className="ml-auto text-[10px] text-muted">{shown.length}</span>
                   </button>
                   {isOpen && (
@@ -260,7 +282,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
               )
             })}
             {isSearching && groups.every(g => g.fields.filter(f => f.toLowerCase().includes(q)).length === 0) && (
-              <p className="px-3 py-4 text-[12px] text-muted text-center">No fields match “{search}”.</p>
+              <p className="px-3 py-4 text-[12px] text-muted text-center">{t('data.noFieldsMatch', { q: search })}</p>
             )}
           </div>
         </div>,
@@ -271,6 +293,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
 }
 
 export default function DataPage() {
+  const { t, lang } = useI18n()
   const [schemaFields, setSchemaFields] = useState<string[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [draftFilters, setDraftFilters] = useState<Filter[]>([])
@@ -334,9 +357,10 @@ export default function DataPage() {
         setRows(j.data)
         setTotal(j.meta.total)
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load data') })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : t('data.loadFailed')) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t is stable per language; no refetch on language switch
   }, [applied, page])
 
   // Debounce the keyword search into the applied query.
@@ -409,15 +433,24 @@ export default function DataPage() {
 
     return ordered.map(({ name, group }) => {
       const custom = CUSTOM_RENDERERS[name] ?? {}
+      const d = DICT_BY_NAME.get(name)
+      let resolvedLabel = custom.label ?? humanize(name)
+      if (d) {
+        if (lang === 'th') {
+          resolvedLabel = d.th_label || d.label
+        } else {
+          resolvedLabel = d.label
+        }
+      }
       return {
         key: name,
-        label: custom.label ?? humanize(name),
+        label: resolvedLabel,
         className: custom.className,
         render: custom.render,
-        group,
+        group: groupLabel(t, group),
       }
     })
-  }, [schemaFields, rows])
+  }, [schemaFields, rows, t, lang])
 
   // Group → list of available fields, used to render the collapsible field picker.
   const groupedFields = useMemo(() => {
@@ -461,7 +494,7 @@ export default function DataPage() {
   async function handleExport() {
     if (exporting || total === 0) return
     if (total > MAX_EXPORT_ROWS) {
-      setExportError(`Too many records to export (${total.toLocaleString()}). The limit is ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters or keyword first.`)
+      setExportError(t('data.exportTooManyErr', { n: total.toLocaleString(), limit: MAX_EXPORT_ROWS.toLocaleString() }))
       return
     }
     setExporting(true); setExportError(''); setExportProgress({ loaded: 0, total })
@@ -469,10 +502,11 @@ export default function DataPage() {
       await exportObservationsXlsx({
         query: { search: applied.search, filters: applied.filters, dateFrom: applied.dateFrom, dateTo: applied.dateTo },
         columns: visibleColumns.map(c => ({ key: c.key, label: c.label })),
+        lang,
         onProgress: (loaded, t) => setExportProgress({ loaded, total: t }),
       })
     } catch (e) {
-      setExportError(e instanceof Error ? e.message : 'Export failed')
+      setExportError(e instanceof Error ? e.message : t('data.exportFailed'))
     } finally {
       setExporting(false); setExportProgress(null)
     }
@@ -486,7 +520,7 @@ export default function DataPage() {
 
   return (
     <div className="flex flex-col flex-1">
-      <TopBar title="Tree Data" subtitle="Browse, search and filter census observations" />
+      <TopBar title={t('data.title')} subtitle={t('data.subtitle')} />
 
       <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto">
         {/* Filter builder */}
@@ -496,7 +530,7 @@ export default function DataPage() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                placeholder="Search species, plot, collector, remarks…"
+                placeholder={t('data.searchPlaceholder')}
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 bg-ghost border border-dim rounded-sm text-[13px] text-neutral placeholder:text-muted/50 outline-none focus:border-coral/40 transition-colors"
@@ -504,14 +538,14 @@ export default function DataPage() {
             </div>
             <span className="flex flex-col items-start ml-2">
               <span className="flex items-center gap-2 text-[12px] text-coral/90 uppercase tracking-widest font-semibold">
-                <SlidersHorizontal size={13} /> Filters
+                <SlidersHorizontal size={13} /> {t('data.filters')}
                 {activeFilterCount > 0 && <Badge variant="coral">{activeFilterCount}</Badge>}
               </span>
               <span
                 className="text-[10px] text-white/50 mt-0.5"
-                title={`Suggestions dictionary generated ${DICT_GENERATED_AT}`}
+                title={t('data.suggestionsTip', { d: DICT_GENERATED_AT })}
               >
-                suggestions from {new Date(DICT_GENERATED_AT).toLocaleDateString()}
+                {t('data.suggestionsFrom', { d: new Date(DICT_GENERATED_AT).toLocaleDateString() })}
               </span>
             </span>
           </div>
@@ -532,21 +566,21 @@ export default function DataPage() {
                     onChange={e => updateFilter(i, { op: e.target.value as FilterOp })}
                     className="px-3 py-2 bg-bg border border-dim rounded-sm text-[13px] text-neutral outline-none focus:border-coral/40 transition-colors"
                   >
-                    {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {OPERATORS.map(o => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
                   </select>
                   <input
                     type="text"
                     value={f.value}
                     disabled={op?.noValue}
                     onChange={e => updateFilter(i, { value: e.target.value })}
-                    placeholder={op?.noValue ? '—' : 'value…'}
+                    placeholder={op?.noValue ? '—' : t('data.valuePlaceholder')}
                     list={VALUE_SUGGESTIONS[f.field] ? `vals-${f.field}` : undefined}
                     className="flex-1 min-w-[8rem] px-3 py-2 bg-bg border border-dim rounded-sm text-[13px] text-neutral outline-none focus:border-coral/40 transition-colors disabled:opacity-40"
                   />
                   <button
                     onClick={() => removeFilter(i)}
                     className="p-2 text-muted hover:text-rose transition-colors"
-                    title="Remove condition"
+                    title={t('data.removeCondition')}
                   >
                     <X size={14} />
                   </button>
@@ -563,24 +597,24 @@ export default function DataPage() {
           ))}
 
           <div className="flex items-center gap-2 mt-4">
-            <Button variant="secondary" size="sm" onClick={addFilter}><Plus size={13} />Add condition</Button>
-            <Button size="sm" onClick={applyFilters} loading={loading}>Apply</Button>
+            <Button variant="secondary" size="sm" onClick={addFilter}><Plus size={13} />{t('data.addCondition')}</Button>
+            <Button size="sm" onClick={applyFilters} loading={loading}>{t('data.apply')}</Button>
             {(draftFilters.length > 0 || activeFilterCount > 0) && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>Clear</Button>
+              <Button variant="ghost" size="sm" onClick={clearFilters}>{t('data.clear')}</Button>
             )}
           </div>
 
           {/* Time frame — a date range on the record's added date. Applied
-              automatically 1.5s after a change, together with filters + keyword. */}
+              automatically 1.5s after a change, together with filters + keyword.
           <div className="mt-5 pt-5 border-t border-dim">
             <div className="flex items-center gap-2 mb-3">
               <CalendarRange size={14} className="text-coral/90" />
-              <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">Time frame</span>
-              <span className="text-[10px] text-muted">record added date</span>
+              <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">{t('data.timeFrame')}</span>
+              <span className="text-[10px] text-muted">{t('data.recordAddedDate')}</span>
             </div>
             <div className="flex items-end gap-3 flex-wrap">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-widest text-muted">Begin date</label>
+                <label className="text-[10px] uppercase tracking-widest text-muted">{t('data.beginDate')}</label>
                 <input
                   type="date"
                   value={dateFrom}
@@ -591,7 +625,7 @@ export default function DataPage() {
               </div>
               <span className="text-muted pb-2.5">→</span>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-widest text-muted">Finish date</label>
+                <label className="text-[10px] uppercase tracking-widest text-muted">{t('data.finishDate')}</label>
                 <input
                   type="date"
                   value={dateTo}
@@ -605,19 +639,20 @@ export default function DataPage() {
                   type="button"
                   onClick={() => { setDateFrom(''); setDateTo('') }}
                   className="pb-2 p-2 text-muted hover:text-rose transition-colors"
-                  title="Clear time frame"
+                  title={t('data.clearTimeFrame')}
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
             {dateRangeInvalid && (
-              <p className="text-[11px] text-rose mt-2">Begin date must be on or before the finish date.</p>
+              <p className="text-[11px] text-rose mt-2">{t('data.dateRangeInvalid')}</p>
             )}
             <p className="text-[11px] text-muted mt-2">
-              Applies automatically ~1.5s after you pick a date, alongside your filters and keyword. Dates are parsed flexibly (ISO, D/M/Y, M/D/Y, D-Mon-Y, epoch). While no records have a parseable added-date, the time frame is ignored rather than zeroing out your results.
+              {t('data.timeFrameHint')}
             </p>
           </div>
+          */}
         </MangroveCard>
 
         {/* Field picker — collapsible folders per group, chips per field. */}
@@ -632,7 +667,7 @@ export default function DataPage() {
               className={`text-coral/90 transition-transform ${fieldPanelOpen ? 'rotate-90' : ''}`}
             />
             <Columns3 size={14} className="text-coral/90" />
-            <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">Fields</span>
+            <span className="text-[12px] uppercase tracking-widest font-semibold text-coral/90">{t('data.fields')}</span>
             <Badge variant="default">{visibleColumns.length} / {columns.length}</Badge>
           </button>
 
@@ -681,9 +716,9 @@ export default function DataPage() {
                                   filter: 'drop-shadow(0 0 4px rgba(255,59,59,0.65))',
                                 }
                             }
-                            title={allHidden ? 'Show all in group' : 'Hide all in group'}
+                            title={allHidden ? t('data.showAllInGroup') : t('data.hideAllInGroup')}
                           >
-                            {allHidden ? <><Eye size={12} /> Click to Show All</> : <><EyeOff size={12} /> Click to Hide All</>}
+                            {allHidden ? <><Eye size={12} /> {t('data.clickToShowAll')}</> : <><EyeOff size={12} /> {t('data.clickToHideAll')}</>}
                           </button>
                         )
                       })()}
@@ -701,7 +736,7 @@ export default function DataPage() {
                                   ? 'bg-coral/10 border-coral/30 text-neutral'
                                   : 'bg-bg border-dim text-gray-300 line-through'
                                 }`}
-                              title={visible ? 'Click to hide' : 'Click to show'}
+                              title={visible ? t('data.clickToHide') : t('data.clickToShow')}
                             >
                               {f}
                             </button>
@@ -724,34 +759,34 @@ export default function DataPage() {
           <MangroveCard variant="sand" theme={tableTheme} className={tableFullscreen ? 'min-h-full' : ''}>
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
               <div className="min-w-0">
-                <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">Results</span>
+                <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">{t('data.results')}</span>
                 {!loading && !error && (
                   <p className="text-[12px] text-muted mt-1 leading-relaxed">
-                    Found <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
-                    {total === 1 ? 'record' : 'records'}
-                    {(activeConditions.length > 0 || applied.search || applied.dateFrom || applied.dateTo) && ' from '}
+                    {t('data.foundPrefix')} <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
+                    {total === 1 ? t('data.record') : t('data.records')}
+                    {(activeConditions.length > 0 || applied.search || applied.dateFrom || applied.dateTo) && t('data.fromFilters')}
                     {activeConditions.map((f, i) => (
                       <span key={i}>
                         {i > 0 && <span className="text-muted">, </span>}
-                        <span className="font-mono text-[11px] text-neutral">{describeFilter(f)}</span>
+                        <span className="font-mono text-[11px] text-neutral">{describeFilter(f, t)}</span>
                       </span>
                     ))}
                     {applied.search && (
                       <span>
-                        {activeConditions.length > 0 && <span className="text-muted"> and </span>}
-                        keyword <span className="font-mono text-[11px] text-neutral">“{applied.search}”</span>
+                        {activeConditions.length > 0 && <span className="text-muted">{t('data.and')}</span>}
+                        {t('data.keyword')} <span className="font-mono text-[11px] text-neutral">“{applied.search}”</span>
                       </span>
                     )}
                     {(applied.dateFrom || applied.dateTo) && (
                       <span>
-                        {(activeConditions.length > 0 || applied.search) && <span className="text-muted"> and </span>}
-                        added{' '}
+                        {(activeConditions.length > 0 || applied.search) && <span className="text-muted">{t('data.and')}</span>}
+                        {t('data.added')}{' '}
                         <span className="font-mono text-[11px] text-neutral">
                           {applied.dateFrom && applied.dateTo
-                            ? `between ${applied.dateFrom} and ${applied.dateTo}`
+                            ? t('data.betweenDates', { a: applied.dateFrom, b: applied.dateTo })
                             : applied.dateFrom
-                              ? `on/after ${applied.dateFrom}`
-                              : `on/before ${applied.dateTo}`}
+                              ? t('data.onAfter', { d: applied.dateFrom })
+                              : t('data.onBefore', { d: applied.dateTo })}
                         </span>
                       </span>
                     )}
@@ -764,8 +799,8 @@ export default function DataPage() {
                   type="button"
                   onClick={() => setTableTheme(t => (t === 'dark' ? 'light' : 'dark'))}
                   className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
-                  title={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
-                  aria-label={tableTheme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'}
+                  title={tableTheme === 'dark' ? t('data.switchDay') : t('data.switchNight')}
+                  aria-label={tableTheme === 'dark' ? t('data.switchDay') : t('data.switchNight')}
                 >
                   {tableTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
@@ -773,9 +808,9 @@ export default function DataPage() {
                   type="button"
                   onClick={() => setInsightsOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors"
-                  title="Visualize the current filtered records"
+                  title={t('data.viewInsightTip')}
                 >
-                  <BarChart3 size={13} /> View Data Insight
+                  <BarChart3 size={13} /> {t('data.viewInsight')}
                 </button>
                 <button
                   type="button"
@@ -784,20 +819,20 @@ export default function DataPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted hover:text-neutral border border-dim rounded-sm hover:border-coral/40 hover:bg-ghost transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   title={
                     total > MAX_EXPORT_ROWS
-                      ? `Too many records (${total.toLocaleString()}). Export is limited to ${MAX_EXPORT_ROWS.toLocaleString()} — narrow the filters first.`
-                      : 'Export the current filtered records + active fields to XLSX'
+                      ? t('data.exportTooManyTip', { n: total.toLocaleString(), limit: MAX_EXPORT_ROWS.toLocaleString() })
+                      : t('data.exportTip')
                   }
                 >
                   {exporting
-                    ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
-                    : <><Download size={13} /> Export XLSX</>}
+                    ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> {t('data.exporting')}</>
+                    : <><Download size={13} /> {t('data.exportXlsx')}</>}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTableFullscreen(f => !f)}
                   className="p-1.5 text-muted hover:text-neutral transition-colors rounded-sm hover:bg-ghost"
-                  title={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
-                  aria-label={tableFullscreen ? 'Exit fullscreen' : 'View the Table in Fullscreen'}
+                  title={tableFullscreen ? t('data.exitFullscreen') : t('data.fullscreen')}
+                  aria-label={tableFullscreen ? t('data.exitFullscreen') : t('data.fullscreen')}
                 >
                   {tableFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
@@ -807,13 +842,13 @@ export default function DataPage() {
             {error && <p className="text-[13px] text-rose mb-4">{error}</p>}
             {!loading && !error && total > MAX_EXPORT_ROWS && (
               <p className="text-[12px] text-amber-500 mb-4">
-                XLSX export is disabled above {MAX_EXPORT_ROWS.toLocaleString()} records (current view: {total.toLocaleString()}). Add filters or a keyword to narrow the results, then export.
+                {t('data.exportDisabledBanner', { limit: MAX_EXPORT_ROWS.toLocaleString(), n: total.toLocaleString() })}
               </p>
             )}
-            {exportError && <p className="text-[13px] text-rose mb-4">Export failed: {exportError}</p>}
+            {exportError && <p className="text-[13px] text-rose mb-4">{t('data.exportFailed')}: {exportError}</p>}
             {exporting && exportProgress && (
               <p className="text-[12px] text-muted mb-4">
-                Fetching records for export… {exportProgress.loaded.toLocaleString()} / {exportProgress.total.toLocaleString()}
+                {t('data.exportFetching', { a: exportProgress.loaded.toLocaleString(), b: exportProgress.total.toLocaleString() })}
               </p>
             )}
 
@@ -822,14 +857,14 @@ export default function DataPage() {
               rows={rows as unknown as Record<string, unknown>[]}
               loading={loading}
               keyField="map_record_id"
-              emptyMessage="No observations match. Adjust the search or filters."
+              emptyMessage={t('data.noMatch')}
             />
 
             <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
-              <span>{total === 0 ? '0 records' : `${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()}`}</span>
+              <span>{total === 0 ? t('data.zeroRecords') : t('data.rangeOf', { from: from.toLocaleString(), to: to.toLocaleString(), total: total.toLocaleString() })}</span>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>Previous</Button>
-                <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>Next</Button>
+                <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>{t('common.previous')}</Button>
+                <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>{t('common.next')}</Button>
               </div>
             </div>
           </MangroveCard>

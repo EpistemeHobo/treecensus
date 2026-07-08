@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { LanguageToggle } from '@/components/ui/LanguageToggle'
 
 interface TopBarProps {
   title: string
@@ -17,6 +18,7 @@ export function TopBar({ title, subtitle, actions }: TopBarProps) {
         {subtitle && <p className="text-[13px] text-muted mt-0.5">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-3">
+        <LanguageToggle />
         <Badge variant="default">{process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'}</Badge>
         {actions}
       </div>

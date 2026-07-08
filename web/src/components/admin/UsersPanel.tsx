@@ -9,6 +9,8 @@ import { UserPlus, KeyRound, Trash2 } from 'lucide-react'
 import { AddUserModal } from './AddUserModal'
 import { ResetPasswordModal } from './ResetPasswordModal'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/LanguageContext'
+import type { TranslationKey } from '@/i18n/translations'
 import type { UserRole } from '@/types'
 
 interface AdminUser {
@@ -31,6 +33,7 @@ function fmt(ts?: string) {
 
 export function UsersPanel() {
   const { user: me } = useAuth()
+  const { t } = useI18n()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,15 +45,15 @@ export function UsersPanel() {
     setError('')
     try {
       const res = await fetch('/api/users')
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to load users.')
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t('users.loadFailed'))
       const data = await res.json()
       setUsers(data.users ?? [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users.')
+      setError(err instanceof Error ? err.message : t('users.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { load() }, [load])
 
@@ -62,10 +65,10 @@ export function UsersPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to update role.')
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t('users.roleFailed'))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update role.')
+      setError(err instanceof Error ? err.message : t('users.roleFailed'))
     } finally {
       setBusyId(null)
     }
@@ -80,24 +83,24 @@ export function UsersPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next }),
       })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to update status.')
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t('users.statusFailed'))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status.')
+      setError(err instanceof Error ? err.message : t('users.statusFailed'))
     } finally {
       setBusyId(null)
     }
   }
 
   async function deleteUser(u: AdminUser) {
-    if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return
+    if (!confirm(t('users.deleteConfirm', { email: u.email }))) return
     setBusyId(u.id)
     try {
       const res = await fetch(`/api/users/${u.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to delete user.')
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t('users.deleteFailed'))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user.')
+      setError(err instanceof Error ? err.message : t('users.deleteFailed'))
     } finally {
       setBusyId(null)
     }
@@ -106,10 +109,10 @@ export function UsersPanel() {
   return (
     <MangroveCard seed={91} subtle>
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-[14px] font-semibold text-neutral">Users</h2>
+        <h2 className="text-[14px] font-semibold text-neutral">{t('users.title')}</h2>
         <Button size="sm" onClick={() => setAddOpen(true)}>
           <UserPlus size={13} />
-          Add User
+          {t('users.add')}
         </Button>
       </div>
 
@@ -123,36 +126,36 @@ export function UsersPanel() {
         loading={loading}
         keyField="id"
         columns={[
-          { key: 'name', label: 'Name', render: u => (
+          { key: 'name', label: t('users.name'), render: u => (
             <div className="flex flex-col">
               <span className="text-neutral">{u.name}</span>
               <span className="text-[11px] text-muted">{u.email}</span>
             </div>
           )},
-          { key: 'role', label: 'Role', render: u => (
+          { key: 'role', label: t('users.role'), render: u => (
             <select
               value={u.role}
               disabled={busyId === u.id || me?.id === u.id}
               onChange={e => changeRole(u.id, e.target.value as UserRole)}
               className="bg-ghost border border-dim rounded-sm px-2 py-1 text-[12px] text-neutral outline-none focus:border-coral/40"
-              title={me?.id === u.id ? 'You cannot change your own role' : undefined}
+              title={me?.id === u.id ? t('users.cantChangeOwnRole') : undefined}
             >
-              {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+              {ROLES.map(r => <option key={r} value={r}>{t(`role.${r}` as TranslationKey)}</option>)}
             </select>
           )},
-          { key: 'status', label: 'Status', render: u => (
+          { key: 'status', label: t('users.status'), render: u => (
             <button
               onClick={() => toggleStatus(u)}
               disabled={busyId === u.id || me?.id === u.id}
               className="cursor-pointer disabled:cursor-not-allowed"
-              title={me?.id === u.id ? 'You cannot disable your own account' : 'Click to toggle'}
+              title={me?.id === u.id ? t('users.cantDisableSelf') : t('users.clickToToggle')}
             >
               <Badge variant={u.status === 'active' ? 'success' : 'danger'}>
-                {u.status}
+                {t(`status.${u.status}` as TranslationKey)}
               </Badge>
             </button>
           )},
-          { key: 'lastLogin', label: 'Last Login', render: u => (
+          { key: 'lastLogin', label: t('users.lastLogin'), render: u => (
             <span className="text-[12px] text-muted">{fmt(u.lastLogin)}</span>
           )},
           { key: 'actions', label: '', className: 'w-24', render: u => (
@@ -160,7 +163,7 @@ export function UsersPanel() {
               <button
                 onClick={() => setResetTarget(u)}
                 className="p-1.5 rounded-sm text-muted hover:text-neutral hover:bg-ghost transition-colors"
-                title="Reset password"
+                title={t('users.resetPassword')}
               >
                 <KeyRound size={13} />
               </button>
@@ -168,7 +171,7 @@ export function UsersPanel() {
                 onClick={() => deleteUser(u)}
                 disabled={me?.id === u.id}
                 className="p-1.5 rounded-sm text-muted hover:text-rose hover:bg-rose/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title={me?.id === u.id ? 'You cannot delete your own account' : 'Delete user'}
+                title={me?.id === u.id ? t('users.cantDeleteSelf') : t('users.deleteUser')}
               >
                 <Trash2 size={13} />
               </button>
@@ -176,7 +179,7 @@ export function UsersPanel() {
           )},
         ]}
         rows={users}
-        emptyMessage="No users yet. Click Add User to create the first one."
+        emptyMessage={t('users.none')}
       />
 
       <AddUserModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={load} />

@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { useI18n } from '@/context/LanguageContext'
 
 interface Props {
   userId: string | null
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function ResetPasswordModal({ userId, userEmail, onClose, onDone }: Props) {
+  const { t } = useI18n()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,13 +32,13 @@ export function ResetPasswordModal({ userId, userEmail, onClose, onDone }: Props
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? 'Failed to reset password.')
+        throw new Error(err.error ?? t('reset.failed'))
       }
       setPassword('')
       onDone()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset password.')
+      setError(err instanceof Error ? err.message : t('reset.failed'))
     } finally {
       setLoading(false)
     }
@@ -46,21 +48,21 @@ export function ResetPasswordModal({ userId, userEmail, onClose, onDone }: Props
     <Modal
       open={!!userId}
       onClose={() => { if (!loading) { setPassword(''); setError(''); onClose() } }}
-      title={`Reset password${userEmail ? ` — ${userEmail}` : ''}`}
+      title={`${t('reset.title')}${userEmail ? ` — ${userEmail}` : ''}`}
       footer={
         <>
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>Cancel</Button>
-          <Button size="sm" onClick={handleSubmit} loading={loading}>Set password</Button>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
+          <Button size="sm" onClick={handleSubmit} loading={loading}>{t('reset.setPassword')}</Button>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
-          label="New password"
+          label={t('reset.newPassword')}
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          placeholder="Minimum 8 characters"
+          placeholder={t('settings.min8Ph')}
           required
           autoFocus
         />
@@ -70,7 +72,7 @@ export function ResetPasswordModal({ userId, userEmail, onClose, onDone }: Props
           </p>
         )}
         <p className="text-[12px] text-muted">
-          The user's current password will be replaced immediately. Share the new password with them over a secure channel.
+          {t('reset.note')}
         </p>
       </form>
     </Modal>

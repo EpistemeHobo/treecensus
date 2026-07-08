@@ -1,15 +1,21 @@
 import { WebGLBackground } from '@/components/auth/WebGLBackground'
 import { LightningText }   from '@/components/auth/LightningText'
 import { LoginForm }       from '@/components/auth/LoginForm'
+import { LanguageToggle }  from '@/components/ui/LanguageToggle'
 
 export default function LoginPage() {
   return (
     <main
-      className="dark relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="dark relative min-h-screen flex items-center justify-center overflow-hidden auth-page"
       style={{ backgroundColor: '#07070b' }}
     >
       {/* WebGL fine-lattice ambient background */}
       <WebGLBackground />
+
+      {/* Language switch — floats above the ambient layers */}
+      <div className="absolute top-5 right-5 z-20">
+        <LanguageToggle />
+      </div>
 
       {/* Radial violet glow behind centre content */}
       <div
@@ -22,7 +28,7 @@ export default function LoginPage() {
       {/* Content column */}
       <div className="relative z-10 flex flex-col items-center gap-8 px-4 w-full animate-slide-up">
 
-        {/* Lightning sweep headline */}
+        {/* Sweep headline */}
         <LightningText line1="Tree Census" line2="Field Portal" />
 
         {/* Login card */}
