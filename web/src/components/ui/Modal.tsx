@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -24,7 +25,10 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
 
   if (!open) return null
 
-  return (
+  // Portal to <body> so the overlay escapes the stacking context of whatever
+  // card renders it (MangroveCard's z-index:1 content wrapper would otherwise
+  // let later siblings paint over — and steal clicks from — the modal).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
@@ -49,6 +53,7 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
           <div className="px-5 py-4 border-t border-dim flex justify-end gap-2">{footer}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
