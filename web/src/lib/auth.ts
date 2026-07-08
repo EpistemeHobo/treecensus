@@ -49,7 +49,7 @@ export const PORTAL_ROUTES: Record<string, UserRole> = {
   '/query': 'analyst',
   '/maps': 'data_viewer',
   '/reports': 'data_manager',
-  '/export': 'data_viewer',
+  '/guide': 'data_viewer',
   '/admin': 'admin',
   '/settings': 'field_user',
 }

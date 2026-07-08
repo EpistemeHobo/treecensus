@@ -7,25 +7,13 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
-import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange } from 'lucide-react'
+import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange, Database } from 'lucide-react'
 import FIELD_DICTIONARY from '@/data/field-dictionary.json'
-import DATA_DICTIONARY from '@/data/data-dictionary.json'
+import { DICT_BY_NAME } from '@/lib/data-dictionary'
 import { InsightsModal } from '@/components/data/InsightsModal'
 import { exportObservationsXlsx, MAX_EXPORT_ROWS } from '@/lib/export-xlsx'
 import { useI18n } from '@/context/LanguageContext'
 import type { TranslationKey } from '@/i18n/translations'
-
-const DICT_BY_NAME = new Map<string, {
-  name: string
-  label: string
-  th_label?: string | null
-  description: string
-  th_description?: string | null
-  unit?: string
-  th_unit?: string | null
-}>(
-  (DATA_DICTIONARY.fields as any[]).map(f => [f.name, f])
-)
 
 const VALUE_SUGGESTIONS = FIELD_DICTIONARY.fields as Record<string, string[]>
 const DICT_GENERATED_AT = FIELD_DICTIONARY.generatedAt as string
@@ -58,10 +46,11 @@ const TYPE_BADGE: Record<string, 'coral' | 'success' | 'violet' | 'default'> = {
 }
 
 // Human-readable description of a condition, e.g. `species_raw contains “oak”`.
-function describeFilter(f: Filter, t: Translate): string {
+function describeFilter(f: Filter, t: Translate, lang: string): string {
   const op = OPERATORS.find(o => o.value === f.op)
   const label = op ? t(op.labelKey) : f.op
-  return op?.noValue ? `${f.field} ${label}` : `${f.field} ${label} “${f.value}”`
+  const fieldLabel = getFieldLabel(f.field, lang)
+  return op?.noValue ? `${fieldLabel} ${label}` : `${fieldLabel} ${label} “${f.value}”`
 }
 
 // Column grouping — ordered; columns render in this order, with the group header spanning them.
@@ -142,6 +131,34 @@ function humanize(name: string): string {
   return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+function getFieldLabel(name: string, lang: string): string {
+  const d = DICT_BY_NAME.get(name)
+  if (!d) return humanize(name)
+  if (lang === 'th') {
+    return d.th_label || d.label
+  }
+  return d.label
+}
+
+function findFieldByNameOrLabel(input: string, lang: string, fields: string[]): string {
+  const cleanInput = input.trim().toLowerCase()
+  if (!cleanInput) return ''
+  
+  if (fields.includes(input)) return input
+
+  for (const f of fields) {
+    const d = DICT_BY_NAME.get(f)
+    if (d) {
+      const thL = (d.th_label || '').toLowerCase()
+      const enL = (d.label || '').toLowerCase()
+      if (thL === cleanInput || enL === cleanInput) {
+        return f
+      }
+    }
+  }
+  return input
+}
+
 // Searchable field picker for the condition builder — groups collapsed by
 // default, portal-rendered so it survives the card's overflow: hidden.
 interface FieldSelectProps {
@@ -150,13 +167,15 @@ interface FieldSelectProps {
   fields: string[]
 }
 function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
+
+  const displayValue = open ? search : getFieldLabel(value, lang)
 
   const groups = useMemo(() => {
     const groupOf = new Map<string, string>()
@@ -173,6 +192,7 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
   function openPopover() {
     if (inputRef.current) setAnchor(inputRef.current.getBoundingClientRect())
     setOpen(true)
+    setSearch(value ? getFieldLabel(value, lang) : '')
   }
 
   useEffect(() => {
@@ -206,13 +226,19 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
     })
   }
 
+  function handleInputChange(val: string) {
+    setSearch(val)
+    const realField = findFieldByNameOrLabel(val, lang, fields)
+    onChange(realField)
+  }
+
   return (
     <>
       <input
         ref={inputRef}
         type="text"
-        value={value}
-        onChange={e => { onChange(e.target.value); setSearch(e.target.value); openPopover() }}
+        value={displayValue}
+        onChange={e => handleInputChange(e.target.value)}
         onFocus={openPopover}
         placeholder={t('data.fieldPlaceholder')}
         spellCheck={false}
@@ -245,7 +271,13 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
 
           <div className="max-h-72 overflow-y-auto">
             {groups.map(g => {
-              const shown = isSearching ? g.fields.filter(f => f.toLowerCase().includes(q)) : g.fields
+              const shown = isSearching
+                ? g.fields.filter(f => {
+                    const labelText = getFieldLabel(f, lang).toLowerCase()
+                    const rawKey = f.toLowerCase()
+                    return labelText.includes(q) || rawKey.includes(q)
+                  })
+                : g.fields
               if (isSearching && shown.length === 0) return null
               const isOpen = isSearching || expanded.has(g.name)
               return (
@@ -264,18 +296,21 @@ function FieldSelect({ value, onChange, fields }: FieldSelectProps) {
                   </button>
                   {isOpen && (
                     <ul>
-                      {shown.map(f => (
-                        <li key={f}>
-                          <button
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}   // keep input focus
-                            onClick={() => { onChange(f); setSearch(''); setOpen(false) }}
-                            className={`w-full px-8 py-1.5 text-left font-mono text-[12px] hover:bg-coral/10 ${value === f ? 'text-coral' : 'text-neutral'}`}
-                          >
-                            {f}
-                          </button>
-                        </li>
-                      ))}
+                      {shown.map(f => {
+                        const labelText = getFieldLabel(f, lang)
+                        return (
+                          <li key={f}>
+                            <button
+                              type="button"
+                              onMouseDown={e => e.preventDefault()}   // keep input focus
+                              onClick={() => { onChange(f); setSearch(''); setOpen(false) }}
+                              className={`w-full px-8 py-1.5 text-left font-mono text-[12px] hover:bg-coral/10 ${value === f ? 'text-coral' : 'text-neutral'}`}
+                            >
+                              {labelText} <span className="text-[10px] text-muted ml-1">({f})</span>
+                            </button>
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
@@ -325,6 +360,10 @@ export default function DataPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // The table starts empty so the page opens instantly (the full set is 11k+
+  // records). Records are fetched once the user asks — via the Show All
+  // Records button, or implicitly by applying a search, filter, or time frame.
+  const [loaded, setLoaded] = useState(false)
 
   // Field pool for filter auto-suggestion (source of truth = observations schema).
   useEffect(() => {
@@ -336,6 +375,7 @@ export default function DataPage() {
 
   // Fetch rows whenever the applied query or page changes.
   useEffect(() => {
+    if (!loaded) return
     let cancelled = false
     setLoading(true); setError('')
     fetch('/api/data/observations', {
@@ -361,11 +401,12 @@ export default function DataPage() {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- t is stable per language; no refetch on language switch
-  }, [applied, page])
+  }, [applied, page, loaded])
 
   // Debounce the keyword search into the applied query.
   useEffect(() => {
     const t = setTimeout(() => {
+      if (searchInput.trim()) setLoaded(true)
       setApplied(a => (a.search === searchInput ? a : { ...a, search: searchInput }))
       setPage(0)
     }, 350)
@@ -378,6 +419,7 @@ export default function DataPage() {
     if (dateRangeInvalid) return
     const t = setTimeout(() => {
       if (applied.dateFrom === dateFrom && applied.dateTo === dateTo) return
+      if (dateFrom || dateTo) setLoaded(true)
       setApplied(a => ({ ...a, dateFrom, dateTo }))
       setPage(0)
     }, 1500)
@@ -385,6 +427,7 @@ export default function DataPage() {
   }, [dateFrom, dateTo, dateRangeInvalid, applied.dateFrom, applied.dateTo])
 
   function applyFilters() {
+    setLoaded(true)
     setApplied(a => ({ ...a, filters: draftFilters }))
     setPage(0)
   }
@@ -656,7 +699,7 @@ export default function DataPage() {
         </MangroveCard>
 
         {/* Field picker — collapsible folders per group, chips per field. */}
-        <MangroveCard seed={42}>
+        <MangroveCard seed={42} variant="brown">
           <button
             type="button"
             onClick={() => setFieldPanelOpen(o => !o)}
@@ -760,7 +803,7 @@ export default function DataPage() {
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
               <div className="min-w-0">
                 <span className="text-[12px] uppercase tracking-widest font-semibold text-[color:var(--c-th)]">{t('data.results')}</span>
-                {!loading && !error && (
+                {loaded && !loading && !error && (
                   <p className="text-[12px] text-muted mt-1 leading-relaxed">
                     {t('data.foundPrefix')} <span className="font-semibold text-neutral">{total.toLocaleString()}</span>{' '}
                     {total === 1 ? t('data.record') : t('data.records')}
@@ -768,7 +811,7 @@ export default function DataPage() {
                     {activeConditions.map((f, i) => (
                       <span key={i}>
                         {i > 0 && <span className="text-muted">, </span>}
-                        <span className="font-mono text-[11px] text-neutral">{describeFilter(f, t)}</span>
+                        <span className="font-mono text-[11px] text-neutral">{describeFilter(f, t, lang)}</span>
                       </span>
                     ))}
                     {applied.search && (
@@ -852,21 +895,34 @@ export default function DataPage() {
               </p>
             )}
 
-            <Table
-              columns={visibleColumns as Parameters<typeof Table>[0]['columns']}
-              rows={rows as unknown as Record<string, unknown>[]}
-              loading={loading}
-              keyField="map_record_id"
-              emptyMessage={t('data.noMatch')}
-            />
-
-            <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
-              <span>{total === 0 ? t('data.zeroRecords') : t('data.rangeOf', { from: from.toLocaleString(), to: to.toLocaleString(), total: total.toLocaleString() })}</span>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>{t('common.previous')}</Button>
-                <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>{t('common.next')}</Button>
+            {!loaded ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <p className="text-[13px] text-muted text-center max-w-md leading-relaxed">
+                  {t('data.showAllHint')}
+                </p>
+                <Button onClick={() => setLoaded(true)}>
+                  <Database size={14} /> {t('data.showAll')}
+                </Button>
               </div>
-            </div>
+            ) : (
+              <>
+                <Table
+                  columns={visibleColumns as Parameters<typeof Table>[0]['columns']}
+                  rows={rows as unknown as Record<string, unknown>[]}
+                  loading={loading}
+                  keyField="map_record_id"
+                  emptyMessage={t('data.noMatch')}
+                />
+
+                <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
+                  <span>{total === 0 ? t('data.zeroRecords') : t('data.rangeOf', { from: from.toLocaleString(), to: to.toLocaleString(), total: total.toLocaleString() })}</span>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>{t('common.previous')}</Button>
+                    <Button variant="ghost" size="sm" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>{t('common.next')}</Button>
+                  </div>
+                </div>
+              </>
+            )}
           </MangroveCard>
         </div>
       </div>

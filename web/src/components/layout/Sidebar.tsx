@@ -1,10 +1,12 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useI18n } from '@/context/LanguageContext'
 import { hasRole } from '@/lib/auth'
+import { UI_DICTIONARY, type UiTopicKey } from '@/lib/ui-dictionary'
 import clsx from 'clsx'
 import type { UserRole } from '@/types'
 import type { TranslationKey } from '@/i18n/translations'
@@ -13,10 +15,11 @@ import {
   TreePine,
   Map,
   FileText,
-  Download,
+  BookOpen,
   Shield,
   LogOut,
   Settings as SettingsIcon,
+  Search,
 } from 'lucide-react'
 
 interface NavItem {
@@ -26,12 +29,107 @@ interface NavItem {
   minRole: UserRole
 }
 
+// Flat pool of every UI label for the UI search box; both language names
+// are matched so users can search in whichever language they see on screen.
+interface SearchEntry {
+  id: string
+  label_en: string
+  label_th: string
+  category: UiTopicKey
+}
+
+const SEARCH_POOL: SearchEntry[] = (Object.keys(UI_DICTIONARY) as UiTopicKey[]).flatMap(cat =>
+  UI_DICTIONARY[cat].ui_elements.map(el => ({
+    id: el.id as string,
+    label_en: el.label_en,
+    label_th: el.label_th,
+    category: cat,
+  })),
+)
+
+function findBestMatch(query: string): SearchEntry | null {
+  const q = query.trim().toLowerCase()
+  if (!q) return null
+  return (
+    SEARCH_POOL.find(e => e.label_en.toLowerCase() === q || e.label_th.toLowerCase() === q) ??
+    SEARCH_POOL.find(e => e.label_en.toLowerCase().startsWith(q) || e.label_th.toLowerCase().startsWith(q)) ??
+    SEARCH_POOL.find(e => e.label_en.toLowerCase().includes(q) || e.label_th.toLowerCase().includes(q)) ??
+    null
+  )
+}
+
+function UiSearchBox() {
+  const router = useRouter()
+  const { t, lang } = useI18n()
+  const [query, setQuery] = useState('')
+  const [focused, setFocused] = useState(false)
+
+  const suggestions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return SEARCH_POOL.filter(
+      e => e.label_en.toLowerCase().includes(q) || e.label_th.toLowerCase().includes(q),
+    ).slice(0, 6)
+  }, [query])
+
+  function goTo(entry: SearchEntry | null) {
+    setQuery('')
+    if (entry) {
+      router.push(`/guide?topic=${entry.category}&label=${encodeURIComponent(entry.id)}`)
+    } else {
+      // Empty or unrecognised search — land on the topic that explains the search.
+      router.push('/guide?topic=ui-search')
+    }
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-dim px-1">
+      <div className="relative">
+        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted/60 pointer-events-none" />
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') goTo(findBestMatch(query))
+            if (e.key === 'Escape') setQuery('')
+          }}
+          placeholder={t('nav.uiSearchPh')}
+          className="w-full bg-ghost border border-dim rounded-sm pl-7 pr-2.5 py-2 text-[12px] text-neutral placeholder:text-muted/40 outline-none focus:border-coral/40 transition-colors"
+        />
+      </div>
+      {focused && suggestions.length > 0 && (
+        <ul className="mt-1 flex flex-col">
+          {suggestions.map(s => (
+            <li key={s.id}>
+              {/* onMouseDown so the click wins over the input's blur */}
+              <button
+                onMouseDown={e => { e.preventDefault(); goTo(s) }}
+                className="w-full text-left px-2.5 py-1.5 rounded-sm hover:bg-ghost transition-colors"
+              >
+                <span className="block text-[12px] text-neutral truncate">
+                  {lang === 'en' ? s.label_en : s.label_th}
+                </span>
+                <span className="block text-[10px] text-muted/60 truncate">
+                  {lang === 'en' ? s.label_th : s.label_en}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'data_viewer'  },
   { href: '/data',      label: 'nav.data',      icon: TreePine,        minRole: 'data_viewer'  },
   { href: '/maps',      label: 'nav.maps',      icon: Map,             minRole: 'data_viewer'  },
   { href: '/reports',   label: 'nav.reports',   icon: FileText,        minRole: 'data_manager' },
-  { href: '/export',    label: 'nav.export',    icon: Download,        minRole: 'data_viewer'  },
+  { href: '/guide',     label: 'nav.guide',     icon: BookOpen,        minRole: 'data_viewer'  },
   { href: '/admin',     label: 'nav.admin',     icon: Shield,          minRole: 'admin'        },
   { href: '/settings',  label: 'nav.settings',  icon: SettingsIcon,    minRole: 'field_user'   },
 ]
@@ -82,6 +180,9 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* UI search — jumps to the user-guide section for any on-screen label */}
+        <UiSearchBox />
       </nav>
 
       {/* Mangrove roots — 5 sequential sets, each grows then retracts before next begins */}

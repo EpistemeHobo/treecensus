@@ -6,6 +6,7 @@ import type { DashboardStats, QueryResult } from '@/types'
 // JSON path) or Application Default Credentials when running on GCP.
 
 import { getGcpCredentials } from './gcp-credentials'
+import { WOOD_DENSITY, densityLookupArrays } from './wood-density'
 
 const bq = new BigQuery({
   projectId: process.env.GCP_PROJECT_ID,
@@ -519,6 +520,168 @@ export async function getObservationInsights(opts: {
     byCrownCondition: toCats(crownRows),
     topPlots: toCats(plotRows),
     gbhHistogram,
+  }
+}
+
+// ─── Biomass (query-scoped allometric estimation) ─────────────────────────────
+
+/** One group's summed + averaged biomass for each of the three equations (kg). */
+export interface BiomassGroup {
+  label: string
+  trees: number
+  komiAgbSum: number
+  komiAgbAvg: number
+  komiTotalSum: number
+  komiTotalAvg: number
+  chaveSum: number
+  chaveAvg: number
+}
+
+export interface BiomassResult {
+  /** Tree-stem rows with a usable girth in the current query. */
+  trees: number
+  /** Wood-density defaults / provenance echoed back for the formula panel. */
+  defaultDensity: number
+  densityVersion: string
+  densityReviewed: boolean
+  /** Share (0–1) of stems whose species matched a density-table entry. */
+  densityMatchedFrac: number
+  /** Grand totals across ALL matched stems (kg), for the summary tiles. */
+  grandKomiAgb: number
+  grandKomiTotal: number
+  grandChave: number
+  bySpecies: BiomassGroup[]
+  byProject: BiomassGroup[]
+  byPlot: BiomassGroup[]
+}
+
+/**
+ * Query-scoped biomass over the SAME filtered set the row browser shows.
+ *
+ * All three equations are computed PER STEM in SQL (they are non-linear in DBH,
+ * so summing must happen after the per-tree formula), then summed and averaged
+ * per group. The client picks which equation to display and optionally scales
+ * by the carbon fraction — no refetch needed on toggle.
+ *
+ *   D (DBH, cm) = gbh_cm / π                      (girth → diameter)
+ *   ρ           = wood density from species table (default when unmatched)
+ *   H           = total_height_m
+ *   Komiyama AGB   = 0.251 · ρ · D^2.46
+ *   Komiyama BGB   = 0.199 · ρ^0.899 · D^2.22   (total = AGB + BGB)
+ *   Chave (2014)   = 0.0673 · (ρ · D² · H)^0.976  (needs H)
+ */
+export async function getObservationBiomass(opts: {
+  search?: string
+  filters?: ObservationFilter[]
+  dateFrom?: string
+  dateTo?: string
+}): Promise<BiomassResult> {
+  const { where, params } = await buildObservationWhere(opts)
+  const { keys, values } = densityLookupArrays()
+
+  const allParams = {
+    ...params,
+    densKeys: keys,
+    densValues: values,
+    defaultDensity: WOOD_DENSITY.defaultDensity,
+  }
+
+  // Shared CTE chain: girth → DBH, species-keyed density join, per-stem biomass.
+  const WITH_STEMS = `
+    WITH density AS (
+      SELECT k AS species, v AS density
+      FROM UNNEST(@densKeys) AS k WITH OFFSET ko
+      JOIN UNNEST(@densValues) AS v WITH OFFSET vo ON ko = vo
+    ),
+    stems AS (
+      SELECT
+        COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''), NULLIF(thai_name, ''), NULLIF(species_raw, ''), '(unspecified)') AS species_label,
+        COALESCE(NULLIF(project_no_raw, ''), '(blank)') AS project_label,
+        COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS plot_label,
+        LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,
+        SAFE_CAST(gbh_cm AS FLOAT64) / ACOS(-1) AS dbh,
+        SAFE_CAST(total_height_m AS FLOAT64) AS h
+      FROM \`${OBSERVATIONS_FQN}\`
+      WHERE ${where} AND observation_type = 'tree_stem'
+    ),
+    biomass AS (
+      SELECT
+        s.species_label, s.project_label, s.plot_label,
+        (s.species_key IS NOT NULL AND d.density IS NOT NULL) AS density_matched,
+        COALESCE(d.density, @defaultDensity) AS rho,
+        s.dbh, s.h,
+        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46) AS komi_agb,
+        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46)
+          + 0.199 * POW(COALESCE(d.density, @defaultDensity), 0.899) * POW(s.dbh, 2.22) AS komi_total,
+        CASE WHEN s.h IS NOT NULL AND s.h > 0
+          THEN 0.0673 * POW(COALESCE(d.density, @defaultDensity) * s.dbh * s.dbh * s.h, 0.976)
+          ELSE NULL END AS chave
+      FROM stems s
+      LEFT JOIN density d ON d.species = s.species_key
+      WHERE s.dbh IS NOT NULL AND s.dbh > 0
+    )`
+
+  const groupQuery = (labelCol: string) => `
+    ${WITH_STEMS}
+    SELECT
+      ${labelCol} AS label,
+      COUNT(*) AS trees,
+      SUM(komi_agb) AS komiAgbSum, AVG(komi_agb) AS komiAgbAvg,
+      SUM(komi_total) AS komiTotalSum, AVG(komi_total) AS komiTotalAvg,
+      SUM(chave) AS chaveSum, AVG(chave) AS chaveAvg
+    FROM biomass
+    GROUP BY label
+    ORDER BY komiAgbSum DESC
+    LIMIT 12
+  `
+
+  const run = async (query: string) => {
+    const [rows] = await bq.query({ query, params: allParams })
+    return rows as Record<string, unknown>[]
+  }
+
+  const [speciesRows, projectRows, plotRows, summaryRows] = await Promise.all([
+    run(groupQuery('species_label')),
+    run(groupQuery('project_label')),
+    run(groupQuery('plot_label')),
+    run(`
+      ${WITH_STEMS}
+      SELECT
+        COUNT(*) AS trees,
+        AVG(CAST(density_matched AS INT64)) AS matchedFrac,
+        SUM(komi_agb) AS grandKomiAgb,
+        SUM(komi_total) AS grandKomiTotal,
+        SUM(chave) AS grandChave
+      FROM biomass
+    `),
+  ])
+
+  const toGroups = (rows: Record<string, unknown>[]): BiomassGroup[] =>
+    rows.map(r => ({
+      label: String(r.label ?? '—') || '(blank)',
+      trees: Number(r.trees ?? 0),
+      komiAgbSum: Number(r.komiAgbSum ?? 0),
+      komiAgbAvg: Number(r.komiAgbAvg ?? 0),
+      komiTotalSum: Number(r.komiTotalSum ?? 0),
+      komiTotalAvg: Number(r.komiTotalAvg ?? 0),
+      chaveSum: Number(r.chaveSum ?? 0),
+      chaveAvg: Number(r.chaveAvg ?? 0),
+    }))
+
+  const s = (summaryRows[0] ?? {}) as Record<string, unknown>
+
+  return {
+    trees: Number(s.trees ?? 0),
+    defaultDensity: WOOD_DENSITY.defaultDensity,
+    densityVersion: WOOD_DENSITY.version,
+    densityReviewed: WOOD_DENSITY.reviewed,
+    densityMatchedFrac: s.matchedFrac == null ? 0 : Number(s.matchedFrac),
+    grandKomiAgb: Number(s.grandKomiAgb ?? 0),
+    grandKomiTotal: Number(s.grandKomiTotal ?? 0),
+    grandChave: Number(s.grandChave ?? 0),
+    bySpecies: toGroups(speciesRows),
+    byProject: toGroups(projectRows),
+    byPlot: toGroups(plotRows),
   }
 }
 

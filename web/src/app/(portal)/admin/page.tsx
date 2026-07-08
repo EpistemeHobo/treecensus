@@ -26,7 +26,7 @@ export default function AdminPage() {
       <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto">
         <UsersPanel />
 
-        <MangroveCard seed={128} subtle>
+        <MangroveCard variant="brown" seed={128} subtle>
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
             <span className="flex items-center gap-2"><Shield size={14} className="text-coral/90" /> {t('admin.roleMatrix')}</span>
           </h2>

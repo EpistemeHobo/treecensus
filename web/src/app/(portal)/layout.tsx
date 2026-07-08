@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { PortalBackground } from '@/components/portal/PortalBackground'
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -24,9 +23,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-      {/* Fixed canvas sits in the root stacking context — visible through transparent cards */}
-      <PortalBackground />
-
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">

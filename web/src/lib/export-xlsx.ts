@@ -1,28 +1,11 @@
 import * as XLSX from 'xlsx'
-import DATA_DICTIONARY from '@/data/data-dictionary.json'
+import { DICT_BY_NAME } from '@/lib/data-dictionary'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-interface DictField {
-  name: string
-  label: string
-  group: string
-  type: string
-  unit: string
-  appliesTo: string
-  description: string
-  th_label?: string | null
-  th_description?: string | null
-  th_unit?: string | null
-}
 
 interface Filter { field: string; op: string; value: string }
 
 export interface ExportColumn { key: string; label: string }
-
-const DICT_BY_NAME = new Map<string, DictField>(
-  (DATA_DICTIONARY.fields as unknown as DictField[]).map(f => [f.name, f]),
-)
 
 const FETCH_PAGE = 1000
 

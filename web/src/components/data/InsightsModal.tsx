@@ -1,14 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
-import { X, BarChart3 } from 'lucide-react'
+import { X, BarChart3, Leaf } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
+import { WOOD_DENSITY } from '@/lib/wood-density'
+
+// Build and download the wood-density table as CSV: thai_name, scientific_name, ρ.
+// A UTF-8 BOM is prepended so Excel renders the Thai names correctly.
+function downloadDensityCsv() {
+  const esc = (v: string | number) => {
+    const s = String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const header = ['thai_name', 'scientific_name', 'density_g_cm3']
+  const lines = [
+    header.join(','),
+    ...WOOD_DENSITY.species.map(s => [esc(s.thai_name), esc(s.scientific_name), s.density].join(',')),
+  ]
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `wood-density-${WOOD_DENSITY.version}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 interface CategoryCount { label: string; count: number }
 interface Insights {
@@ -26,6 +50,29 @@ interface Insights {
   gbhHistogram: CategoryCount[]
 }
 
+interface BiomassGroup {
+  label: string
+  trees: number
+  komiAgbSum: number; komiAgbAvg: number
+  komiTotalSum: number; komiTotalAvg: number
+  chaveSum: number; chaveAvg: number
+}
+interface Biomass {
+  trees: number
+  defaultDensity: number
+  densityVersion: string
+  densityReviewed: boolean
+  densityMatchedFrac: number
+  grandKomiAgb: number
+  grandKomiTotal: number
+  grandChave: number
+  bySpecies: BiomassGroup[]
+  byProject: BiomassGroup[]
+  byPlot: BiomassGroup[]
+}
+
+type Equation = 'komiAgb' | 'komiTotal' | 'chave'
+
 interface Filter { field: string; op: string; value: string }
 
 interface InsightsModalProps {
@@ -38,21 +85,40 @@ interface InsightsModalProps {
 const PALETTE = ['#A8CC3A', '#C4956A', '#7CC6A6', '#E0B15E', '#8FA8E0', '#D98B8B', '#6FB8CF', '#B48CD1']
 const AXIS = 'rgba(255,255,255,0.45)'
 const GRID = 'rgba(255,255,255,0.06)'
+const CARBON_FRACTION = 0.47
 
-function ChartTooltip({ active, payload, label }: {
-  active?: boolean; payload?: { value?: number | string; name?: string }[]; label?: string
+function fmt(n: number | null, digits = 1): string {
+  if (n == null || Number.isNaN(n)) return '—'
+  return n.toLocaleString(undefined, { maximumFractionDigits: digits })
+}
+
+/** Sum + average of the plotted bars — shown as a caption under every chart. */
+function chartStats(data: CategoryCount[]): { sum: number; avg: number } {
+  if (!data.length) return { sum: 0, avg: 0 }
+  const sum = data.reduce((a, d) => a + d.count, 0)
+  return { sum, avg: sum / data.length }
+}
+
+function ChartTooltip({ active, payload, label, unit }: {
+  active?: boolean; payload?: { value?: number | string; name?: string }[]; label?: string; unit?: string
 }) {
   const { t } = useI18n()
   if (!active || !payload?.length) return null
+  const v = Number(payload[0]?.value)
   return (
     <div className="rounded-sm border border-[rgba(255,255,255,0.12)] bg-[#0A0A10] px-3 py-2 text-[12px] text-neutral shadow-xl">
       <div className="font-semibold">{label ?? payload[0]?.name}</div>
-      <div className="text-coral">{t('insights.tooltipRecords', { n: Number(payload[0]?.value).toLocaleString() })}</div>
+      <div className="text-coral">
+        {unit ? `${fmt(v)} ${unit}` : t('insights.tooltipRecords', { n: v.toLocaleString() })}
+      </div>
     </div>
   )
 }
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Panel({ title, subtitle, stats, unit, children }: {
+  title: string; subtitle?: string; stats?: { sum: number; avg: number }; unit?: string; children: React.ReactNode
+}) {
+  const { t } = useI18n()
   return (
     <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0d0d14] p-4">
       <div className="mb-3">
@@ -60,6 +126,16 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
         {subtitle && <p className="text-[11px] text-muted mt-0.5">{subtitle}</p>}
       </div>
       {children}
+      {stats && (
+        <div className="flex gap-4 mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)] text-[11px]">
+          <span className="text-muted">
+            {t('insights.chartSum')}: <span className="text-neutral font-semibold tabular-nums">{fmt(stats.sum)}{unit ? ` ${unit}` : ''}</span>
+          </span>
+          <span className="text-muted">
+            {t('insights.chartAvg')}: <span className="text-neutral font-semibold tabular-nums">{fmt(stats.avg)}{unit ? ` ${unit}` : ''}</span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -74,18 +150,18 @@ function StatTile({ label, value }: { label: string; value: string }) {
 }
 
 // Horizontal bar list — best for long category labels (species, plots).
-function HBar({ data }: { data: CategoryCount[] }) {
+function HBar({ data, unit }: { data: CategoryCount[]; unit?: string }) {
   const height = Math.max(140, data.length * 30 + 20)
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
         <CartesianGrid horizontal={false} stroke={GRID} />
-        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11 }} allowDecimals={false} />
+        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11 }} allowDecimals={!!unit} />
         <YAxis
           type="category" dataKey="label" width={130}
           tick={{ fill: AXIS, fontSize: 11 }} interval={0}
         />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+        <Tooltip content={<ChartTooltip unit={unit} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Bar dataKey="count" radius={[0, 3, 3, 0]}>
           {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
         </Bar>
@@ -94,14 +170,14 @@ function HBar({ data }: { data: CategoryCount[] }) {
   )
 }
 
-function VBar({ data }: { data: CategoryCount[] }) {
+function VBar({ data, unit }: { data: CategoryCount[]; unit?: string }) {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
         <CartesianGrid vertical={false} stroke={GRID} />
         <XAxis dataKey="label" tick={{ fill: AXIS, fontSize: 11 }} interval={0} />
-        <YAxis tick={{ fill: AXIS, fontSize: 11 }} allowDecimals={false} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+        <YAxis tick={{ fill: AXIS, fontSize: 11 }} allowDecimals={!!unit} />
+        <Tooltip content={<ChartTooltip unit={unit} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
           {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
         </Bar>
@@ -130,16 +206,20 @@ function Donut({ data }: { data: CategoryCount[] }) {
   )
 }
 
-function fmt(n: number | null, digits = 1): string {
-  if (n == null || Number.isNaN(n)) return '—'
-  return n.toLocaleString(undefined, { maximumFractionDigits: digits })
-}
-
 export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
   const { t } = useI18n()
+  const [tab, setTab] = useState<'overview' | 'biomass'>('overview')
+
   const [data, setData] = useState<Insights | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const [biomass, setBiomass] = useState<Biomass | null>(null)
+  const [bmLoading, setBmLoading] = useState(false)
+  const [bmError, setBmError] = useState('')
+
+  const [equation, setEquation] = useState<Equation>('komiAgb')
+  const [carbon, setCarbon] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -148,8 +228,11 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // Reset to the overview tab and clear both datasets whenever the query changes.
   useEffect(() => {
     if (!open) return
+    setTab('overview')
+    setBiomass(null); setBmError('')
     let cancelled = false
     setLoading(true); setError(''); setData(null)
     fetch('/api/data/insights', {
@@ -174,6 +257,51 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- error text uses the language active at load time
   }, [open, query])
 
+  // Biomass is fetched lazily the first time the tab is opened for this query.
+  useEffect(() => {
+    if (!open || tab !== 'biomass' || biomass || bmLoading) return
+    let cancelled = false
+    setBmLoading(true); setBmError('')
+    fetch('/api/data/biomass', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        search: query.search,
+        filters: query.filters.filter(f => f.field),
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+      }),
+    })
+      .then(r => r.json())
+      .then(j => {
+        if (cancelled) return
+        if (j.error) throw new Error(j.error)
+        setBiomass(j.data)
+      })
+      .catch(e => { if (!cancelled) setBmError(e instanceof Error ? e.message : t('biomass.loadFailed')) })
+      .finally(() => { if (!cancelled) setBmLoading(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, query])
+
+  // Pick the active equation's per-group sum, scaled by the carbon fraction.
+  const scale = carbon ? CARBON_FRACTION : 1
+  const groupValue = (g: BiomassGroup): number =>
+    (equation === 'komiAgb' ? g.komiAgbSum : equation === 'komiTotal' ? g.komiTotalSum : g.chaveSum) * scale
+
+  const toCat = (groups: BiomassGroup[] | undefined): CategoryCount[] =>
+    (groups ?? []).map(g => ({ label: g.label, count: groupValue(g) }))
+
+  const bmSpecies = useMemo(() => toCat(biomass?.bySpecies), [biomass, equation, carbon]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bmProject = useMemo(() => toCat(biomass?.byProject), [biomass, equation, carbon]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bmPlot = useMemo(() => toCat(biomass?.byPlot), [biomass, equation, carbon]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const grandTotal = biomass
+    ? (equation === 'komiAgb' ? biomass.grandKomiAgb : equation === 'komiTotal' ? biomass.grandKomiTotal : biomass.grandChave) * scale
+    : 0
+  const metricWord = carbon ? t('biomass.metricCarbon') : t('biomass.metricBiomass')
+  const unit = t('biomass.unitKg')
+
   if (!open || typeof document === 'undefined') return null
 
   return createPortal(
@@ -187,91 +315,240 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[rgba(255,255,255,0.08)] rounded-t-lg" style={{ background: '#0A0A10' }}>
-          <div className="flex items-center gap-2">
-            <BarChart3 size={16} className="text-coral" />
-            <h3 className="text-[14px] font-semibold text-neutral">{t('insights.title')}</h3>
-            {data && (
-              <span className="text-[12px] text-muted">
-                {t('insights.recordsInView', { n: data.total.toLocaleString() })}
-              </span>
-            )}
+        <div className="sticky top-0 z-10 border-b border-[rgba(255,255,255,0.08)] rounded-t-lg" style={{ background: '#0A0A10' }}>
+          <div className="flex items-center justify-between px-6 pt-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={16} className="text-coral" />
+              <h3 className="text-[14px] font-semibold text-neutral">{t('insights.title')}</h3>
+              {data && (
+                <span className="text-[12px] text-muted">
+                  {t('insights.recordsInView', { n: data.total.toLocaleString() })}
+                </span>
+              )}
+            </div>
+            <button onClick={onClose} className="text-muted hover:text-neutral transition-colors" aria-label={t('common.close')}>
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="text-muted hover:text-neutral transition-colors" aria-label={t('common.close')}>
-            <X size={18} />
-          </button>
+          {/* Tabs */}
+          <div className="flex gap-1 px-6 mt-3">
+            {([
+              { key: 'overview' as const, label: t('insights.tabOverview'), icon: BarChart3 },
+              { key: 'biomass' as const, label: t('insights.tabBiomass'), icon: Leaf },
+            ]).map(tb => (
+              <button
+                key={tb.key}
+                onClick={() => setTab(tb.key)}
+                className={
+                  'flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 -mb-px transition-colors ' +
+                  (tab === tb.key
+                    ? 'border-coral text-coral'
+                    : 'border-transparent text-muted hover:text-neutral')
+                }
+              >
+                <tb.icon size={13} /> {tb.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="p-6">
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <span className="w-7 h-7 border-2 border-muted border-t-transparent rounded-full animate-spin" />
-              <p className="text-[13px] text-muted">{t('insights.crunching')}</p>
-            </div>
+          {/* ── Overview tab ──────────────────────────────────────────────── */}
+          {tab === 'overview' && (
+            <>
+              {loading && (
+                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                  <span className="w-7 h-7 border-2 border-muted border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[13px] text-muted">{t('insights.crunching')}</p>
+                </div>
+              )}
+              {error && !loading && <p className="text-[13px] text-rose py-12 text-center">{error}</p>}
+              {data && !loading && data.total === 0 && (
+                <p className="text-[13px] text-muted py-12 text-center">{t('insights.noRecords')}</p>
+              )}
+              {data && !loading && data.total > 0 && (
+                <div className="flex flex-col gap-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <StatTile label={t('insights.records')} value={data.total.toLocaleString()} />
+                    <StatTile label={t('insights.distinctSpecies')} value={data.distinctSpecies.toLocaleString()} />
+                    <StatTile label={t('insights.distinctPlots')} value={data.distinctPlots.toLocaleString()} />
+                    <StatTile label={t('insights.avgGbh')} value={fmt(data.avgGbhCm)} />
+                    <StatTile label={t('insights.avgHeight')} value={fmt(data.avgHeightM)} />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {data.byObservationType.length > 0 && (
+                      <Panel title={t('insights.obsTypes')} subtitle={t('insights.obsTypesSub')} stats={chartStats(data.byObservationType)}>
+                        <Donut data={data.byObservationType} />
+                      </Panel>
+                    )}
+                    {data.topSpecies.length > 0 && (
+                      <Panel title={t('insights.topSpecies')} subtitle={t('insights.topSpeciesSub')} stats={chartStats(data.topSpecies)}>
+                        <HBar data={data.topSpecies} />
+                      </Panel>
+                    )}
+                    {data.gbhHistogram.length > 0 && (
+                      <Panel title={t('insights.gbhDist')} subtitle={t('insights.gbhDistSub')} stats={chartStats(data.gbhHistogram)}>
+                        <VBar data={data.gbhHistogram} />
+                      </Panel>
+                    )}
+                    {data.byLiveDead.length > 0 && (
+                      <Panel title={t('insights.liveDead')} subtitle={t('insights.liveDeadSub')} stats={chartStats(data.byLiveDead)}>
+                        <Donut data={data.byLiveDead} />
+                      </Panel>
+                    )}
+                    {data.bySizeClass.length > 0 && (
+                      <Panel title={t('insights.sizeClasses')} subtitle={t('insights.sizeClassesSub')} stats={chartStats(data.bySizeClass)}>
+                        <VBar data={data.bySizeClass} />
+                      </Panel>
+                    )}
+                    {data.byCrownCondition.length > 0 && (
+                      <Panel title={t('insights.crownCondition')} subtitle={t('insights.crownConditionSub')} stats={chartStats(data.byCrownCondition)}>
+                        <VBar data={data.byCrownCondition} />
+                      </Panel>
+                    )}
+                    {data.topPlots.length > 0 && (
+                      <Panel title={t('insights.recordsPerPlot')} subtitle={t('insights.recordsPerPlotSub')} stats={chartStats(data.topPlots)}>
+                        <HBar data={data.topPlots} />
+                      </Panel>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
-          {error && !loading && (
-            <p className="text-[13px] text-rose py-12 text-center">{error}</p>
-          )}
+          {/* ── Biomass tab ───────────────────────────────────────────────── */}
+          {tab === 'biomass' && (
+            <>
+              {bmLoading && (
+                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                  <span className="w-7 h-7 border-2 border-muted border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[13px] text-muted">{t('insights.crunching')}</p>
+                </div>
+              )}
+              {bmError && !bmLoading && <p className="text-[13px] text-rose py-12 text-center">{bmError}</p>}
+              {biomass && !bmLoading && biomass.trees === 0 && (
+                <p className="text-[13px] text-muted py-12 text-center">{t('biomass.noTrees')}</p>
+              )}
+              {biomass && !bmLoading && biomass.trees > 0 && (
+                <div className="flex flex-col gap-5">
+                  {/* Formula & method — the equation/carbon controls live here */}
+                  <FormulaPanel
+                    equation={equation} setEquation={setEquation}
+                    carbon={carbon} setCarbon={setCarbon}
+                    biomass={biomass}
+                  />
 
-          {data && !loading && data.total === 0 && (
-            <p className="text-[13px] text-muted py-12 text-center">{t('insights.noRecords')}</p>
-          )}
+                  {/* Summary tiles */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <StatTile label={t('biomass.treeStems')} value={biomass.trees.toLocaleString()} />
+                    <StatTile label={t('biomass.totalBiomass', { metric: metricWord })} value={`${fmt(grandTotal)} ${unit}`} />
+                    <StatTile label={t('biomass.avgPerTree')} value={`${fmt(biomass.trees ? grandTotal / biomass.trees : 0)} ${unit}`} />
+                    <StatTile label={t('insights.distinctSpecies')} value={biomass.bySpecies.length.toLocaleString()} />
+                  </div>
 
-          {data && !loading && data.total > 0 && (
-            <div className="flex flex-col gap-5">
-              {/* Summary tiles */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <StatTile label={t('insights.records')} value={data.total.toLocaleString()} />
-                <StatTile label={t('insights.distinctSpecies')} value={data.distinctSpecies.toLocaleString()} />
-                <StatTile label={t('insights.distinctPlots')} value={data.distinctPlots.toLocaleString()} />
-                <StatTile label={t('insights.avgGbh')} value={fmt(data.avgGbhCm)} />
-                <StatTile label={t('insights.avgHeight')} value={fmt(data.avgHeightM)} />
-              </div>
-
-              {/* Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {data.byObservationType.length > 0 && (
-                  <Panel title={t('insights.obsTypes')} subtitle={t('insights.obsTypesSub')}>
-                    <Donut data={data.byObservationType} />
-                  </Panel>
-                )}
-                {data.topSpecies.length > 0 && (
-                  <Panel title={t('insights.topSpecies')} subtitle={t('insights.topSpeciesSub')}>
-                    <HBar data={data.topSpecies} />
-                  </Panel>
-                )}
-                {data.gbhHistogram.length > 0 && (
-                  <Panel title={t('insights.gbhDist')} subtitle={t('insights.gbhDistSub')}>
-                    <VBar data={data.gbhHistogram} />
-                  </Panel>
-                )}
-                {data.byLiveDead.length > 0 && (
-                  <Panel title={t('insights.liveDead')} subtitle={t('insights.liveDeadSub')}>
-                    <Donut data={data.byLiveDead} />
-                  </Panel>
-                )}
-                {data.bySizeClass.length > 0 && (
-                  <Panel title={t('insights.sizeClasses')} subtitle={t('insights.sizeClassesSub')}>
-                    <VBar data={data.bySizeClass} />
-                  </Panel>
-                )}
-                {data.byCrownCondition.length > 0 && (
-                  <Panel title={t('insights.crownCondition')} subtitle={t('insights.crownConditionSub')}>
-                    <VBar data={data.byCrownCondition} />
-                  </Panel>
-                )}
-                {data.topPlots.length > 0 && (
-                  <Panel title={t('insights.recordsPerPlot')} subtitle={t('insights.recordsPerPlotSub')}>
-                    <HBar data={data.topPlots} />
-                  </Panel>
-                )}
-              </div>
-            </div>
+                  {/* Charts */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {bmSpecies.length > 0 && (
+                      <Panel title={t('biomass.bySpecies')} subtitle={t('biomass.bySpeciesSub', { metric: metricWord })} stats={chartStats(bmSpecies)} unit={unit}>
+                        <HBar data={bmSpecies} unit={unit} />
+                      </Panel>
+                    )}
+                    {bmProject.length > 0 && (
+                      <Panel title={t('biomass.byProject')} subtitle={t('biomass.byProjectSub', { metric: metricWord })} stats={chartStats(bmProject)} unit={unit}>
+                        <HBar data={bmProject} unit={unit} />
+                      </Panel>
+                    )}
+                    {bmPlot.length > 0 && (
+                      <Panel title={t('biomass.byPlot')} subtitle={t('biomass.byPlotSub', { metric: metricWord })} stats={chartStats(bmPlot)} unit={unit}>
+                        <HBar data={bmPlot} unit={unit} />
+                      </Panel>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
     </div>,
     document.body,
+  )
+}
+
+function FormulaPanel({ equation, setEquation, carbon, setCarbon, biomass }: {
+  equation: Equation
+  setEquation: (e: Equation) => void
+  carbon: boolean
+  setCarbon: (b: boolean) => void
+  biomass: Biomass
+}) {
+  const { t } = useI18n()
+  const EQ_OPTIONS: { key: Equation; label: string; formula: string }[] = [
+    { key: 'komiAgb', label: t('biomass.eqKomiAgb'), formula: t('biomass.eqKomiAgbF') },
+    { key: 'komiTotal', label: t('biomass.eqKomiTotal'), formula: t('biomass.eqKomiTotalF') },
+    { key: 'chave', label: t('biomass.eqChave'), formula: t('biomass.eqChaveF') },
+  ]
+  const activeFormula = EQ_OPTIONS.find(e => e.key === equation)?.formula ?? ''
+  const matchPct = Math.round(biomass.densityMatchedFrac * 100)
+
+  return (
+    <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0d0d14] p-4">
+      <h4 className="text-[12px] uppercase tracking-widest font-semibold text-coral/90 mb-3">{t('biomass.method')}</h4>
+
+      {/* Equation radios + carbon checkbox */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className="text-[11px] text-muted uppercase tracking-widest mr-1">{t('biomass.equation')}:</span>
+        {EQ_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setEquation(opt.key)}
+            className={
+              'px-3 py-1.5 rounded-sm text-[12px] font-medium border transition-colors ' +
+              (equation === opt.key
+                ? 'bg-coral/15 text-coral border-coral/30'
+                : 'text-muted border-dim hover:text-neutral hover:bg-ghost')
+            }
+          >
+            {opt.label}
+          </button>
+        ))}
+        <label className="flex items-center gap-1.5 ml-2 text-[12px] text-muted cursor-pointer select-none">
+          <input type="checkbox" checked={carbon} onChange={e => setCarbon(e.target.checked)} className="accent-coral" />
+          {t('biomass.addCarbon')}
+        </label>
+      </div>
+
+      {/* Active formula */}
+      <div className="rounded-sm bg-[#0A0A10] border border-dim px-3.5 py-2.5 font-mono text-[12.5px] text-neutral">
+        {activeFormula}
+        {carbon && <div className="text-coral/90 mt-1">{t('biomass.carbonF')}</div>}
+      </div>
+
+      {/* Symbols / where the numbers come from */}
+      <p className="text-[11px] uppercase tracking-widest text-muted mt-4 mb-2">{t('biomass.symbols')}</p>
+      <ul className="flex flex-col gap-1.5 text-[12px] text-muted leading-relaxed">
+        <li>{t('biomass.symD')}</li>
+        <li>
+          {t('biomass.symRho', { d: biomass.defaultDensity })}{' '}
+          <button
+            type="button"
+            onClick={downloadDensityCsv}
+            className="text-coral underline underline-offset-2 hover:text-coral/80 transition-colors"
+          >
+            {t('biomass.downloadDensity')}
+          </button>
+        </li>
+        {equation === 'chave' && <li>{t('biomass.symH')}</li>}
+        {carbon && <li>{t('biomass.symCarbon')}</li>}
+      </ul>
+
+      {/* Provenance / provisional warning */}
+      <div className="mt-4 flex flex-col gap-1 text-[11px]">
+        <p className="text-amber-500/90">{t('biomass.provisional', { v: biomass.densityVersion })}</p>
+        <p className="text-muted">{t('biomass.densityMatch', { p: matchPct, d: biomass.defaultDensity })}</p>
+      </div>
+    </div>
   )
 }

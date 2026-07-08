@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
-import { Card } from '@/components/ui/Card'
+import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -61,8 +61,8 @@ export default function SettingsPage() {
     <div className="flex flex-col flex-1">
       <TopBar title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
-      <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto max-w-2xl">
-        <Card>
+      <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto w-full max-w-2xl mx-auto">
+        <MangroveCard variant="brown" seed={23} subtle>
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
             <span className="flex items-center gap-2">
               <UserIcon size={14} className="text-muted" /> {t('settings.profile')}
@@ -87,9 +87,9 @@ export default function SettingsPage() {
           <p className="text-[12px] text-muted mt-4">
             {t('settings.adminOnlyNote')}
           </p>
-        </Card>
+        </MangroveCard>
 
-        <Card>
+        <MangroveCard variant="sand">
           <h2 className="text-[14px] font-semibold text-neutral mb-4">
             <span className="flex items-center gap-2">
               <KeyRound size={14} className="text-muted" /> {t('settings.changePassword')}
@@ -137,7 +137,7 @@ export default function SettingsPage() {
               {t('settings.update')}
             </Button>
           </form>
-        </Card>
+        </MangroveCard>
       </div>
     </div>
   )
