@@ -58,24 +58,56 @@ export async function getObservationSchema(): Promise<ColumnMeta[]> {
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
 export async function getDashboardStats(): Promise<DashboardStats> {
+  const { keys, values } = densityLookupArrays()
   const query = `
+    WITH density AS (
+      SELECT k AS species, v AS density
+      FROM UNNEST(@densKeys) AS k WITH OFFSET ko
+      JOIN UNNEST(@densValues) AS v WITH OFFSET vo ON ko = vo
+    ),
+    raw_stats AS (
+      SELECT
+        observation_type,
+        tree_id,
+        plot_id,
+        species_id,
+        submission_id,
+        added_time,
+        LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,
+        SAFE_CAST(gbh_cm AS FLOAT64) / ACOS(-1) AS dbh
+      FROM \`${OBSERVATIONS_FQN}\`
+    ),
+    biomass AS (
+      SELECT
+        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46) AS komi_agb
+      FROM raw_stats s
+      LEFT JOIN density d ON d.species = s.species_key
+      WHERE s.observation_type = 'tree_stem' AND s.dbh IS NOT NULL AND s.dbh > 0
+    )
     SELECT
       COUNT(DISTINCT IF(observation_type = 'tree_stem', tree_id, NULL))        AS totalTrees,
       COUNT(DISTINCT plot_id)                                                  AS totalSites,
       COUNT(DISTINCT species_id)                                               AS totalSpecies,
       COUNT(DISTINCT submission_id)                                            AS totalSubmissions,
-      COUNT(DISTINCT IF(source_status != 'clean', submission_id, NULL))        AS pendingSubmissions,
+      (SELECT SUM(komi_agb) FROM biomass)                                      AS totalBiomass,
       MAX(NULLIF(added_time, ''))                                              AS lastSyncAt
-    FROM \`${OBSERVATIONS_FQN}\`
+    FROM raw_stats
   `
-  const [rows] = await bq.query({ query })
+  const [rows] = await bq.query({
+    query,
+    params: {
+      densKeys: keys,
+      densValues: values,
+      defaultDensity: WOOD_DENSITY.defaultDensity,
+    },
+  })
   const r = (rows[0] ?? {}) as Record<string, unknown>
   return {
     totalTrees: Number(r.totalTrees ?? 0),
     totalSites: Number(r.totalSites ?? 0),
     totalSpecies: Number(r.totalSpecies ?? 0),
     totalSubmissions: Number(r.totalSubmissions ?? 0),
-    pendingSubmissions: Number(r.pendingSubmissions ?? 0),
+    totalBiomass: Number(r.totalBiomass ?? 0),
     lastSyncAt: (r.lastSyncAt as string) ?? '—',
   }
 }
@@ -395,7 +427,7 @@ export interface ObservationInsights {
   topSpecies: CategoryCount[]
   bySizeClass: CategoryCount[]
   byLiveDead: CategoryCount[]
-  byCrownCondition: CategoryCount[]
+  heightHistogram: HistogramBin[]
   topPlots: CategoryCount[]
   gbhHistogram: HistogramBin[]
 }
@@ -443,7 +475,7 @@ export async function getObservationInsights(opts: {
     speciesRows,
     sizeRows,
     liveDeadRows,
-    crownRows,
+    heightRows,
     plotRows,
     gbhRows,
   ] = await Promise.all([
@@ -468,7 +500,25 @@ export async function getObservationInsights(opts: {
     // there's real distribution to show.
     run(catQuery(`CAST(size_class_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(size_class_code AS STRING), '') IS NOT NULL`)),
     run(catQuery(`CAST(live_dead_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(live_dead_code AS STRING), '') IS NOT NULL`)),
-    run(catQuery(`CAST(crown_condition_code AS STRING)`, `observation_type = 'tree_stem' AND NULLIF(CAST(crown_condition_code AS STRING), '') IS NOT NULL`)),
+    run(`
+      WITH h AS (
+        SELECT SAFE_CAST(total_height_m AS FLOAT64) AS height
+        FROM ${FROM} AND observation_type = 'tree_stem'
+      )
+      SELECT
+        CASE
+          WHEN height < 2  THEN '0–2'
+          WHEN height < 5  THEN '2–5'
+          WHEN height < 10 THEN '5–10'
+          WHEN height < 15 THEN '10–15'
+          WHEN height < 20 THEN '15–20'
+          ELSE '20+'
+        END AS label,
+        COUNT(*) AS count
+      FROM h
+      WHERE height IS NOT NULL AND height > 0
+      GROUP BY label
+    `),
     run(`
       SELECT COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS label, COUNT(*) AS count
       FROM ${FROM}
@@ -507,6 +557,13 @@ export async function getObservationInsights(opts: {
     .map(label => ({ label, count: gbhMap.get(label) ?? 0 }))
     .filter(b => b.count > 0)
 
+  // Order Height bins along the size axis.
+  const HEIGHT_ORDER = ['0–2', '2–5', '5–10', '10–15', '15–20', '20+']
+  const heightMap = new Map(toCats(heightRows).map(c => [c.label, c.count]))
+  const heightHistogram = HEIGHT_ORDER
+    .map(label => ({ label, count: heightMap.get(label) ?? 0 }))
+    .filter(b => b.count > 0)
+
   return {
     total: Number(s.total ?? 0),
     distinctSpecies: Number(s.distinctSpecies ?? 0),
@@ -517,7 +574,7 @@ export async function getObservationInsights(opts: {
     topSpecies: toCats(speciesRows),
     bySizeClass: toCats(sizeRows),
     byLiveDead: toCats(liveDeadRows),
-    byCrownCondition: toCats(crownRows),
+    heightHistogram,
     topPlots: toCats(plotRows),
     gbhHistogram,
   }
@@ -683,6 +740,61 @@ export async function getObservationBiomass(opts: {
     byProject: toGroups(projectRows),
     byPlot: toGroups(plotRows),
   }
+}
+
+export async function getDashboardGbhDist(): Promise<{ label: string; count: number }[]> {
+  const query = `
+    WITH g AS (
+      SELECT SAFE_CAST(gbh_cm AS FLOAT64) AS gbh
+      FROM \`${OBSERVATIONS_FQN}\`
+      WHERE observation_type = 'tree_stem'
+    )
+    SELECT
+      CASE
+        WHEN gbh < 10  THEN '0–10'
+        WHEN gbh < 20  THEN '10–20'
+        WHEN gbh < 30  THEN '20–30'
+        WHEN gbh < 50  THEN '30–50'
+        WHEN gbh < 75  THEN '50–75'
+        WHEN gbh < 100 THEN '75–100'
+        ELSE '100+'
+      END AS label,
+      COUNT(*) AS count
+    FROM g
+    WHERE gbh IS NOT NULL
+    GROUP BY label
+  `
+  const [rows] = await bq.query({ query })
+  const GBH_ORDER = ['0–10', '10–20', '20–30', '30–50', '50–75', '75–100', '100+']
+  const map = new Map((rows as { label: string; count: string | number }[]).map(r => [r.label, Number(r.count)]))
+  return GBH_ORDER.map(label => ({ label, count: map.get(label) ?? 0 })).filter(b => b.count > 0)
+}
+
+export async function getDashboardHeightDist(): Promise<{ label: string; count: number }[]> {
+  const query = `
+    WITH h AS (
+      SELECT SAFE_CAST(total_height_m AS FLOAT64) AS height
+      FROM \`${OBSERVATIONS_FQN}\`
+      WHERE observation_type = 'tree_stem'
+    )
+    SELECT
+      CASE
+        WHEN height < 2  THEN '0–2'
+        WHEN height < 5  THEN '2–5'
+        WHEN height < 10 THEN '5–10'
+        WHEN height < 15 THEN '10–15'
+        WHEN height < 20 THEN '15–20'
+        ELSE '20+'
+      END AS label,
+      COUNT(*) AS count
+    FROM h
+    WHERE height IS NOT NULL AND height > 0
+    GROUP BY label
+  `
+  const [rows] = await bq.query({ query })
+  const HEIGHT_ORDER = ['0–2', '2–5', '5–10', '10–15', '15–20', '20+']
+  const map = new Map((rows as { label: string; count: string | number }[]).map(r => [r.label, Number(r.count)]))
+  return HEIGHT_ORDER.map(label => ({ label, count: map.get(label) ?? 0 })).filter(b => b.count > 0)
 }
 
 // ─── SQL Query Interface (Analyst / Admin only) ───────────────────────────────

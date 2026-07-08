@@ -25,3 +25,19 @@ CREATE TABLE IF NOT EXISTS `${GCP_PROJECT_ID}.${BIGQUERY_DATASET}.audit_log` (
   meta        STRING,              -- JSON blob (small)
   createdAt   TIMESTAMP NOT NULL
 );
+
+-- Data flags — corrections submitted by users for admin approval.
+CREATE TABLE IF NOT EXISTS `${GCP_PROJECT_ID}.${BIGQUERY_DATASET}.data_flags` (
+  id          STRING    NOT NULL,
+  mapRecordId STRING    NOT NULL,
+  field       STRING    NOT NULL,
+  oldValue    STRING,
+  newValue    STRING,
+  reason      STRING,
+  status      STRING    NOT NULL, -- pending | approved | rejected
+  flaggedBy   STRING    NOT NULL, -- Email of the flagger
+  flaggedAt   TIMESTAMP NOT NULL,
+  reviewedBy  STRING,             -- Email of the reviewer
+  reviewedAt  TIMESTAMP,
+  reviewNotes STRING
+);

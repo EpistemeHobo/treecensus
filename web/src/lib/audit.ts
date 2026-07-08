@@ -74,3 +74,105 @@ export async function listAudit(opts?: { limit?: number }): Promise<AuditEvent[]
   })
   return rows as AuditEvent[]
 }
+
+export interface ActivityLogStats {
+  latestAccessEmail: string
+  latestAccessTime: string
+  totalLogins: number
+  totalQueries: number
+  exportedFiles: number
+  exportedRecords: number
+  approvedFlags: number
+}
+
+export async function getActivityLogStats(): Promise<ActivityLogStats> {
+  if (isLocalMode()) {
+    const rows = await readCollection<AuditEvent>('audit')
+    const loginEvents = rows
+      .filter(r => r.action === 'auth.login')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const latestAccessEmail = loginEvents[0]?.actorEmail ?? '—'
+    const latestAccessTime = loginEvents[0]?.createdAt ?? '—'
+
+    const totalLogins = loginEvents.length
+    const totalQueries = rows.filter(r => r.action === 'data.query').length
+
+    const exportEvents = rows.filter(r => r.action === 'data.export')
+    const exportedFiles = exportEvents.length
+    let exportedRecords = 0
+    for (const ev of exportEvents) {
+      try {
+        const meta = ev.meta ? JSON.parse(ev.meta) : {}
+        exportedRecords += Number(meta.recordsCount ?? 0)
+      } catch {}
+    }
+
+    const flagRows = await readCollection<any>('flags')
+    const approvedFlags = flagRows.filter((f: any) => f.status === 'approved').length
+
+    return {
+      latestAccessEmail,
+      latestAccessTime,
+      totalLogins,
+      totalQueries,
+      exportedFiles,
+      exportedRecords,
+      approvedFlags,
+    }
+  }
+
+  const query = `
+    WITH
+      latest_login AS (
+        SELECT actorEmail, createdAt
+        FROM ${FQN()}
+        WHERE action = 'auth.login'
+        ORDER BY createdAt DESC
+        LIMIT 1
+      ),
+      counts AS (
+        SELECT
+          COUNTIF(action = 'auth.login') AS totalLogins,
+          COUNTIF(action = 'data.query') AS totalQueries,
+          COUNTIF(action = 'data.export') AS exportedFiles,
+          SUM(CASE WHEN action = 'data.export' THEN SAFE_CAST(JSON_VALUE(meta, '$.recordsCount') AS INT64) ELSE 0 END) AS exportedRecords
+        FROM ${FQN()}
+      )
+    SELECT
+      c.totalLogins,
+      c.totalQueries,
+      c.exportedFiles,
+      COALESCE(c.exportedRecords, 0) AS exportedRecords,
+      l.actorEmail AS latestEmail,
+      l.createdAt AS latestTime
+    FROM counts c
+    LEFT JOIN latest_login l ON 1=1
+  `
+
+  const [rows] = await bq().query({ query })
+  const r = (rows[0] ?? {}) as Record<string, unknown>
+  
+  let latestTimeStr = '—'
+  if (r.latestTime) {
+    if (typeof r.latestTime === 'object' && r.latestTime !== null && 'value' in (r.latestTime as any)) {
+      latestTimeStr = String((r.latestTime as any).value)
+    } else {
+      latestTimeStr = String(r.latestTime)
+    }
+  }
+
+  // Count approved flags in data_flags table
+  const flagsQuery = `SELECT COUNT(*) AS approvedFlags FROM \`${process.env.GCP_PROJECT_ID}.${DATASET}.data_flags\` WHERE status = 'approved'`
+  const [flagRows] = await bq().query({ query: flagsQuery })
+  const approvedFlags = Number(flagRows[0]?.approvedFlags ?? 0)
+
+  return {
+    latestAccessEmail: (r.latestEmail as string) ?? '—',
+    latestAccessTime: latestTimeStr,
+    totalLogins: Number(r.totalLogins ?? 0),
+    totalQueries: Number(r.totalQueries ?? 0),
+    exportedFiles: Number(r.exportedFiles ?? 0),
+    exportedRecords: Number(r.exportedRecords ?? 0),
+    approvedFlags,
+  }
+}

@@ -74,7 +74,7 @@ export interface DashboardStats {
   totalSpecies: number
   totalSubmissions: number
   lastSyncAt: string
-  pendingSubmissions: number
+  totalBiomass: number
 }
 
 // ─── API Responses ────────────────────────────────────────────────────────────

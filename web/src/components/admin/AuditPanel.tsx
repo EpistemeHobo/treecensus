@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { useI18n } from '@/context/LanguageContext'
 
 interface AuditEvent {
@@ -34,9 +35,11 @@ export function AuditPanel() {
   const [events, setEvents] = useState<AuditEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 50
 
   useEffect(() => {
-    fetch('/api/audit')
+    fetch('/api/audit?limit=1000')
       .then(async r => {
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? t('audit.loadFailed'))
         return r.json()
@@ -46,6 +49,12 @@ export function AuditPanel() {
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once; error text uses the language active at load time
   }, [])
+
+  const total = events.length
+  const pagedEvents = events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const hasNext = (page + 1) * PAGE_SIZE < total
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1
+  const to = Math.min((page + 1) * PAGE_SIZE, total)
 
   return (
     <MangroveCard variant="sand">
@@ -77,9 +86,39 @@ export function AuditPanel() {
             <span className="text-[11px] font-mono text-muted">{e.meta ?? ''}</span>
           )},
         ]}
-        rows={events}
+        rows={pagedEvents}
         emptyMessage={t('audit.none')}
-        />
+      />
+
+      {!loading && total > 0 && (
+        <div className="flex items-center justify-between mt-4 text-[12px] text-muted">
+          <span>
+            {t('data.rangeOf', {
+              from: from.toLocaleString(),
+              to: to.toLocaleString(),
+              total: total.toLocaleString(),
+            })}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(p => Math.max(p - 1, 0))}
+            >
+              {t('common.previous')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!hasNext}
+              onClick={() => setPage(p => p + 1)}
+            >
+              {t('common.next')}
+            </Button>
+          </div>
+        </div>
+      )}
     </MangroveCard>
   )
 }

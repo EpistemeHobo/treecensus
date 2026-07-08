@@ -26,6 +26,9 @@ import {
   ChevronDown,
   SquarePen,
   Search,
+  Maximize2,
+  X,
+  AlertTriangle,
 } from 'lucide-react'
 
 const TOPIC_KEYS = Object.keys(UI_DICTIONARY) as UiTopicKey[]
@@ -43,6 +46,7 @@ const TOPIC_ICONS: Record<UiTopicKey, React.ElementType> = {
   'audit': ScrollText,
   'common': MousePointerClick,
   'ui-search': Search,
+  'data-flagging': AlertTriangle,
 }
 
 /** Admin-edited mini-guide overrides, keyed by element id. */
@@ -224,6 +228,8 @@ function GuideView() {
                 </li>
               ))}
             </ol>
+
+            <TopicGif topicNumber={TOPIC_KEYS.indexOf(topic) + 1} />
 
             {tips && tips.length > 0 && (
               <>
@@ -416,6 +422,83 @@ function FragmentRow({
             </div>
           </td>
         </tr>
+      )}
+    </>
+  )
+}
+
+function TopicGif({ topicNumber }: { topicNumber: number }) {
+  const [hasError, setHasError] = useState(false)
+  const [isFullScreen, setIsFullScreen] = useState(false)
+
+  useEffect(() => {
+    setHasError(false)
+    setIsFullScreen(false)
+  }, [topicNumber])
+
+  useEffect(() => {
+    if (!isFullScreen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullScreen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullScreen])
+
+  if (hasError) return null
+
+  return (
+    <>
+      <div className="mt-6 w-full">
+        <div 
+          onClick={() => setIsFullScreen(true)}
+          className="relative group cursor-zoom-in overflow-hidden rounded-lg border border-dim shadow-sm bg-neutral-100 w-full h-auto"
+        >
+          <img
+            src={`/gif/${topicNumber}.gif`}
+            alt={`Topic ${topicNumber} walkthrough`}
+            className="w-full h-auto block transition-transform duration-300 group-hover:scale-[1.01]"
+            onError={() => setHasError(true)}
+          />
+          {/* Hover overlay indicator */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 duration-200">
+            <span className="bg-black/75 text-white text-[12px] font-medium px-3.5 py-2 rounded-full flex items-center gap-1.5 backdrop-blur-sm shadow-md">
+              <Maximize2 size={13} />
+              Click to view full screen
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {isFullScreen && (
+        <div 
+          onClick={() => setIsFullScreen(false)}
+          className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-200"
+        >
+          <button 
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsFullScreen(false)
+            }}
+            className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer"
+            aria-label="Close fullscreen view"
+          >
+            <X size={20} />
+          </button>
+          
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-5xl w-full max-h-[85vh] flex items-center justify-center"
+          >
+            <img
+              src={`/gif/${topicNumber}.gif`}
+              alt={`Topic ${topicNumber} walkthrough (Fullscreen)`}
+              className="max-w-full max-h-[85vh] rounded-md shadow-2xl object-contain border border-white/10 cursor-default"
+            />
+          </div>
+        </div>
       )}
     </>
   )

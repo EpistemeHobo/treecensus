@@ -73,13 +73,13 @@ export const GUIDE_CONTENT: Record<UiTopicKey, GuideTopicContent> = {
     intro_th:
       'แดชบอร์ดคือหน้าแรกหลังเข้าสู่ระบบ สรุปภาพรวมของโครงการสำมะโนทั้งหมด ทั้งตัวเลขสำคัญ สัดส่วนการสำรวจแยกตามประเภท และสถานะของระบบนำเข้าข้อมูล',
     steps_en: [
-      'Read the stat cards at the top: Tree Stems, Plots, Species, Submissions, and Needs Review.',
+      'Read the stat cards at the top: Tree Stems, Plots, Species, BIOMASS (Komiyama AGB), and Submissions.',
       'The "Observations by Type" panel splits records into tree stems, seedlings, and woody debris.',
       'Check "System Status" for the BigQuery connection, Zoho Forms, and Cloud Ingestion — "Connected" means data is flowing; "Setup needed" means an administrator must act.',
       'The Live / Offline badge in the header tells you whether the portal is currently reaching the database.',
     ],
     steps_th: [
-      'ดูการ์ดสถิติด้านบน: ลำต้นไม้ แปลงสำรวจ ชนิดพันธุ์ การส่งข้อมูล และรอตรวจสอบ',
+      'ดูการ์ดสถิติด้านบน: ลำต้นไม้ แปลงสำรวจ ชนิดพันธุ์ มวลชีวภาพ (Komiyama AGB) และการส่งข้อมูล',
       'แผง "การสำรวจแยกตามประเภท" แบ่งรายการเป็นลำต้นไม้ กล้าไม้ และเศษไม้',
       'ตรวจสอบ "สถานะระบบ" ทั้งการเชื่อมต่อ BigQuery, Zoho Forms และระบบนำเข้าข้อมูลคลาวด์ — "เชื่อมต่อแล้ว" หมายถึงข้อมูลไหลเข้าปกติ ส่วน "ต้องตั้งค่า" หมายถึงผู้ดูแลระบบต้องดำเนินการ',
       'ป้าย ออนไลน์ / ออฟไลน์ ที่ส่วนหัวบอกว่าพอร์ทัลเชื่อมต่อฐานข้อมูลได้อยู่หรือไม่',
@@ -289,6 +289,36 @@ export const GUIDE_CONTENT: Record<UiTopicKey, GuideTopicContent> = {
       '"ยกเลิก" ปิดกล่องโต้ตอบโดยไม่บันทึกการเปลี่ยนแปลง',
       '"ปิด" ปิดหน้าต่างหรือแผงที่ใช้งานเสร็จแล้ว',
       '"ก่อนหน้า" และ "ถัดไป" เลื่อนดูตารางขนาดยาวครั้งละ 50 รายการ',
+    ],
+  },
+  'data-flagging': {
+    intro_en:
+      'The Data Flagging & Verification System allows field workers to flag incorrect observations, suggest corrections, and let administrators approve or reject those edits to ensure high data quality.',
+    intro_th:
+      'ระบบการแจ้งแก้ไขและตรวจสอบข้อมูลช่วยให้ผู้ปฏิบัติงานภาคสนามสามารถแจ้งแก้ไขข้อมูลการสำรวจที่ไม่ถูกต้อง พร้อมทั้งเสนอแนะค่าใหม่ที่ถูกต้อง เพื่อให้ผู้ดูแลระบบตรวจสอบ อนุมัติ หรือปฏิเสธคำขอเหล่านั้น ซึ่งช่วยควบคุมคุณภาพของข้อมูลได้อย่างมีประสิทธิภาพ',
+    steps_en: [
+      'Navigate to the Data browser page and locate the incorrect observation row.',
+      'Click the red warning/alert icon in the first column of the row to open the "Flag Incorrect Data" dialog.',
+      'Select the specific field that contains the error (e.g. GBH, Height, Species) from the dropdown.',
+      'Review the "Current Value" shown, then type the correct value in "Suggested Value".',
+      'Provide a clear explanation of why the change is necessary under "Reason for correction", then click "Submit".',
+      'The correction is sent to the admin verification queue. Once an administrator approves the request, the database will be automatically updated with the new value. If rejected, the data remains unchanged.'
+    ],
+    steps_th: [
+      'ไปที่หน้าค้นหาข้อมูล (Data) และค้นหาแถวข้อมูลการสำรวจที่คิดว่าไม่ถูกต้อง',
+      'คลิกไอคอนเครื่องหมายเตือนสีส้มแดง (AlertTriangle) ในคอลัมน์แรกเพื่อเปิดหน้าต่าง "แจ้งแก้ไขข้อมูล"',
+      'เลือกฟิลด์ข้อมูลที่ต้องการแก้ไข (เช่น GBH, ความสูง, ชนิดพันธุ์) จากรายการตัวเลือก',
+      'ตรวจสอบ "ค่าปัจจุบัน" ที่แสดงผล จากนั้นกรอกค่าที่ถูกต้องลงในช่อง "ค่าใหม่ที่เสนอ"',
+      'กรอกคำอธิบายที่ชัดเจนเกี่ยวกับความจำเป็นในการแก้ไขในช่อง "เหตุผลที่แก้ไข" แล้วคลิก "ส่งข้อมูล"',
+      'คำร้องขอแก้ไขจะถูกส่งไปยังคิวการตรวจสอบของแอดมิน เมื่อแอดมินอนุมัติ ฐานข้อมูลหลักจะได้รับการอัปเดตค่าใหม่โดยอัตโนมัติ หากปฏิเสธ ข้อมูลจะคงเดิม'
+    ],
+    tips_en: [
+      'Only system fields (like record ID and submission ID) are locked; all other data variables can be flagged.',
+      'Ensure you provide a clear reason or metadata references (like field photos) to help administrators approve the change quickly.'
+    ],
+    tips_th: [
+      'เฉพาะฟิลด์ระบบที่ถูกล็อกไว้เท่านั้น (เช่น รหัสลำต้น และรหัสการส่งข้อมูล) ฟิลด์ข้อมูลสำรวจหลักอื่นๆ ทั้งหมดสามารถแจ้งแก้ไขได้',
+      'โปรดป้อนเหตุผลที่ชัดเจน (เช่น อ้างอิงภาพถ่ายจากแปลงจริง) เพื่อช่วยให้ผู้ดูแลระบบตรวจสอบและอนุมัติคำร้องขอของคุณได้รวดเร็วยิ่งขึ้น'
     ],
   },
 }

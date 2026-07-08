@@ -9,6 +9,7 @@ interface StatCardProps {
   icon?: ReactNode
   accent?: 'coral' | 'violet' | 'neutral'
   seed?: number
+  variant?: 'green' | 'brown' | 'sand'
 }
 
 const accentClasses = {
@@ -25,12 +26,12 @@ function hashSeed(s: string): number {
   return h
 }
 
-export function StatCard({ label, value, sub, icon, accent = 'neutral', seed }: StatCardProps) {
+export function StatCard({ label, value, sub, icon, accent = 'neutral', seed, variant }: StatCardProps) {
   const s = seed ?? hashSeed(label)
   // Stagger the firefly animation per card so they don't pulse in lock-step.
   const delay = -((s % 3200) / 1000) + 7   // old -0…-3.2s, shifted +7s
   return (
-    <MangroveCard seed={s}>
+    <MangroveCard seed={s} variant={variant}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted mb-2">{label}</p>

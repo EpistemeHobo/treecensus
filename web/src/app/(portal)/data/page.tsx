@@ -7,10 +7,11 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
-import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange, Database } from 'lucide-react'
+import { Search, Plus, X, SlidersHorizontal, ChevronRight, Eye, EyeOff, Columns3, Maximize, Minimize, Sun, Moon, BarChart3, Download, CalendarRange, Database, AlertTriangle } from 'lucide-react'
 import FIELD_DICTIONARY from '@/data/field-dictionary.json'
 import { DICT_BY_NAME } from '@/lib/data-dictionary'
 import { InsightsModal } from '@/components/data/InsightsModal'
+import { FlagModal } from '@/components/portal/FlagModal'
 import { exportObservationsXlsx, MAX_EXPORT_ROWS } from '@/lib/export-xlsx'
 import { useI18n } from '@/context/LanguageContext'
 import type { TranslationKey } from '@/i18n/translations'
@@ -348,6 +349,8 @@ export default function DataPage() {
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState<{ loaded: number; total: number } | null>(null)
   const [exportError, setExportError] = useState('')
+  const [flagModalOpen, setFlagModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<Row | null>(null)
 
   useEffect(() => {
     if (!tableFullscreen) return
@@ -507,10 +510,28 @@ export default function DataPage() {
     return Array.from(byGroup.entries()).map(([name, fields]) => ({ name, fields }))
   }, [columns])
 
-  const visibleColumns = useMemo(
-    () => columns.filter(c => !hiddenFields.has(c.key)),
-    [columns, hiddenFields],
-  )
+  const visibleColumns = useMemo(() => {
+    const cols = columns.filter(c => !hiddenFields.has(c.key))
+    cols.unshift({
+      key: '_actions',
+      label: '',
+      group: undefined as any,
+      render: (row: any) => (
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedRecord(row)
+            setFlagModalOpen(true)
+          }}
+          className="text-coral hover:text-coral-light transition-colors"
+          title={lang === 'th' ? 'แจ้งแก้ไขข้อมูล' : 'Flag incorrect data'}
+        >
+          <AlertTriangle size={14} />
+        </button>
+      ),
+    } as any)
+    return cols
+  }, [columns, hiddenFields, lang])
 
   function toggleField(field: string) {
     setHiddenFields(prev => {
@@ -548,6 +569,18 @@ export default function DataPage() {
         lang,
         onProgress: (loaded, t) => setExportProgress({ loaded, total: t }),
       })
+      // Success: Log the export event
+      await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'data.export',
+          meta: {
+            recordsCount: total,
+            format: 'xlsx',
+          },
+        }),
+      }).catch(err => console.error('[audit] export log failed:', err))
     } catch (e) {
       setExportError(e instanceof Error ? e.message : t('data.exportFailed'))
     } finally {
@@ -931,6 +964,16 @@ export default function DataPage() {
         open={insightsOpen}
         onClose={() => setInsightsOpen(false)}
         query={{ search: applied.search, filters: applied.filters, dateFrom: applied.dateFrom, dateTo: applied.dateTo }}
+      />
+
+      <FlagModal
+        open={flagModalOpen}
+        onClose={() => {
+          setFlagModalOpen(false)
+          setSelectedRecord(null)
+        }}
+        record={selectedRecord}
+        fields={schemaFields}
       />
     </div>
   )

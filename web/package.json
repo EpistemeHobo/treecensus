@@ -15,6 +15,7 @@
     "@google-cloud/bigquery": "^7.9.1",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.13",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",

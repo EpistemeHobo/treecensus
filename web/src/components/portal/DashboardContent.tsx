@@ -4,7 +4,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { StatCard } from '@/components/portal/StatCard'
 import { MangroveCard } from '@/components/ui/MangroveCard'
 import { Badge } from '@/components/ui/Badge'
-import { TreePine, MapPin, Leaf, FileCheck, AlertCircle } from 'lucide-react'
+import { TreePine, MapPin, Leaf, FileCheck, Scale, LogIn, Database, Search, Download, Send } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
 import type { TranslationKey } from '@/i18n/translations'
 import type { DashboardStats } from '@/types'
@@ -12,6 +12,15 @@ import type { DashboardStats } from '@/types'
 interface DashboardContentProps {
   stats: DashboardStats
   typeCounts: { type: string; count: number }[]
+  activityStats: {
+    latestAccessEmail: string
+    latestAccessTime: string
+    totalLogins: number
+    totalQueries: number
+    exportedFiles: number
+    exportedRecords: number
+    approvedFlags: number
+  }
   connected: boolean
 }
 
@@ -21,7 +30,7 @@ const TYPE_KEYS: Record<string, TranslationKey> = {
   woody_debris: 'type.woody_debris',
 }
 
-export function DashboardContent({ stats, typeCounts, connected }: DashboardContentProps) {
+export function DashboardContent({ stats, typeCounts, activityStats, connected }: DashboardContentProps) {
   const { t } = useI18n()
   const totalObservations = typeCounts.reduce((sum, item) => sum + item.count, 0)
 
@@ -34,16 +43,48 @@ export function DashboardContent({ stats, typeCounts, connected }: DashboardCont
       />
 
       <div className="flex-1 p-8 flex flex-col gap-8 overflow-auto">
+        {/* Core database metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <StatCard label={t('dash.treeStems')} value={stats.totalTrees} icon={<TreePine size={16} />} accent="coral" />
           <StatCard label={t('dash.plots')} value={stats.totalSites} icon={<MapPin size={16} />} accent="violet" />
           <StatCard label={t('dash.species')} value={stats.totalSpecies} icon={<Leaf size={16} />} />
-          <StatCard label={t('dash.submissions')} value={stats.totalSubmissions} icon={<FileCheck size={16} />} />
           <StatCard
-            label={t('dash.needsReview')}
-            value={stats.pendingSubmissions}
-            icon={<AlertCircle size={16} />}
-            accent={stats.pendingSubmissions > 0 ? 'coral' : 'neutral'}
+            label={t('dash.biomass')}
+            value={`${Math.round(stats.totalBiomass).toLocaleString()} kg`}
+            icon={<Scale size={16} />}
+          />
+          <StatCard label={t('dash.submissions')} value={stats.totalSubmissions} icon={<Send size={16} />} />
+        </div>
+
+        {/* Activity log metrics (mud/dark brown MangroveCards) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label={t('dash.totalLogins')}
+            value={activityStats.totalLogins}
+            sub={t('dash.visitsSub')}
+            icon={<Database size={16} />}
+            variant="brown"
+          />
+          <StatCard
+            label={t('dash.filteredQueries')}
+            value={activityStats.totalQueries}
+            sub={t('dash.queriesSub')}
+            icon={<Search size={16} />}
+            variant="brown"
+          />
+          <StatCard
+            label={t('dash.dataExports')}
+            value={`${activityStats.exportedFiles} files`}
+            sub={t('dash.recordsExported', { n: activityStats.exportedRecords.toLocaleString() })}
+            icon={<Download size={16} />}
+            variant="brown"
+          />
+          <StatCard
+            label={t('dash.dataVerified')}
+            value={`${activityStats.approvedFlags} records`}
+            sub={t('dash.verifiedSub')}
+            icon={<FileCheck size={16} />}
+            variant="brown"
           />
         </div>
 

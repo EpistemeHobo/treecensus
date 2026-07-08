@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
-import { X, BarChart3, Leaf } from 'lucide-react'
+import { X, BarChart3, Leaf, Download } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
 import { WOOD_DENSITY } from '@/lib/wood-density'
 
@@ -45,7 +45,7 @@ interface Insights {
   topSpecies: CategoryCount[]
   bySizeClass: CategoryCount[]
   byLiveDead: CategoryCount[]
-  byCrownCondition: CategoryCount[]
+  heightHistogram: CategoryCount[]
   topPlots: CategoryCount[]
   gbhHistogram: CategoryCount[]
 }
@@ -207,7 +207,7 @@ function Donut({ data }: { data: CategoryCount[] }) {
 }
 
 export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [tab, setTab] = useState<'overview' | 'biomass'>('overview')
 
   const [data, setData] = useState<Insights | null>(null)
@@ -220,6 +220,50 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
 
   const [equation, setEquation] = useState<Equation>('komiAgb')
   const [carbon, setCarbon] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportImage = async () => {
+    const { toPng } = await import('html-to-image')
+    const containerId = tab === 'overview' ? 'overview-charts-container' : 'biomass-charts-container'
+    const node = document.getElementById(containerId)
+    if (!node) return
+
+    setExporting(true)
+    setTimeout(() => {
+      toPng(node, {
+        backgroundColor: '#0A0A10',
+        style: {
+          padding: '24px',
+          borderRadius: '8px',
+        },
+      })
+        .then(async dataUrl => {
+          const link = document.createElement('a')
+          link.download = `tree-census-insights-${tab}-${new Date().toISOString().slice(0, 10)}.png`
+          link.href = dataUrl
+          link.click()
+
+          // Success: Log the export event as 1 file with 1 record
+          await fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'data.export',
+              meta: {
+                recordsCount: 1,
+                format: 'png',
+              },
+            }),
+          }).catch(err => console.error('[audit] chart export log failed:', err))
+        })
+        .catch(err => {
+          console.error('Failed to export charts:', err)
+        })
+        .finally(() => {
+          setExporting(false)
+        })
+    }, 150)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -331,24 +375,39 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
             </button>
           </div>
           {/* Tabs */}
-          <div className="flex gap-1 px-6 mt-3">
-            {([
-              { key: 'overview' as const, label: t('insights.tabOverview'), icon: BarChart3 },
-              { key: 'biomass' as const, label: t('insights.tabBiomass'), icon: Leaf },
-            ]).map(tb => (
-              <button
-                key={tb.key}
-                onClick={() => setTab(tb.key)}
-                className={
-                  'flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 -mb-px transition-colors ' +
-                  (tab === tb.key
-                    ? 'border-coral text-coral'
-                    : 'border-transparent text-muted hover:text-neutral')
-                }
-              >
-                <tb.icon size={13} /> {tb.label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between px-6 mt-3">
+            <div className="flex gap-1">
+              {([
+                { key: 'overview' as const, label: t('insights.tabOverview'), icon: BarChart3 },
+                { key: 'biomass' as const, label: t('insights.tabBiomass'), icon: Leaf },
+              ]).map(tb => (
+                <button
+                  key={tb.key}
+                  onClick={() => setTab(tb.key)}
+                  className={
+                    'flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 -mb-px transition-colors ' +
+                    (tab === tb.key
+                      ? 'border-coral text-coral'
+                      : 'border-transparent text-muted hover:text-neutral')
+                  }
+                >
+                  <tb.icon size={13} /> {tb.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleExportImage}
+              disabled={exporting || (tab === 'overview' ? (loading || !data || data.total === 0) : (bmLoading || !biomass || biomass.trees === 0))}
+              className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-muted hover:text-neutral disabled:opacity-40 disabled:hover:text-muted transition-colors -mb-px"
+            >
+              {exporting ? (
+                <span className="w-3.5 h-3.5 border border-muted border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Download size={13} />
+              )}
+              {exporting ? (lang === 'th' ? 'กำลังส่งออก…' : 'Exporting…') : t('insights.exportChart')}
+            </button>
           </div>
         </div>
 
@@ -367,7 +426,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
                 <p className="text-[13px] text-muted py-12 text-center">{t('insights.noRecords')}</p>
               )}
               {data && !loading && data.total > 0 && (
-                <div className="flex flex-col gap-5">
+                <div id="overview-charts-container" className="flex flex-col gap-5">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <StatTile label={t('insights.records')} value={data.total.toLocaleString()} />
                     <StatTile label={t('insights.distinctSpecies')} value={data.distinctSpecies.toLocaleString()} />
@@ -402,9 +461,9 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
                         <VBar data={data.bySizeClass} />
                       </Panel>
                     )}
-                    {data.byCrownCondition.length > 0 && (
-                      <Panel title={t('insights.crownCondition')} subtitle={t('insights.crownConditionSub')} stats={chartStats(data.byCrownCondition)}>
-                        <VBar data={data.byCrownCondition} />
+                    {data.heightHistogram.length > 0 && (
+                      <Panel title={t('dash.heightDist')} subtitle={t('dash.heightDistSub')} stats={chartStats(data.heightHistogram)}>
+                        <VBar data={data.heightHistogram} />
                       </Panel>
                     )}
                     {data.topPlots.length > 0 && (
@@ -432,7 +491,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
                 <p className="text-[13px] text-muted py-12 text-center">{t('biomass.noTrees')}</p>
               )}
               {biomass && !bmLoading && biomass.trees > 0 && (
-                <div className="flex flex-col gap-5">
+                <div id="biomass-charts-container" className="flex flex-col gap-5">
                   {/* Formula & method — the equation/carbon controls live here */}
                   <FormulaPanel
                     equation={equation} setEquation={setEquation}
