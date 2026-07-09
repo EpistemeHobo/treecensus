@@ -123,13 +123,15 @@ export async function getPlotLocations(): Promise<PlotLocation[]> {
       AVG(IF(valid, lat, NULL)) AS lat,
       AVG(IF(valid, lng, NULL)) AS lng,
       COUNT(DISTINCT IF(observation_type = 'tree_stem', tree_id, NULL)) AS treeCount,
-      COUNT(*) AS obsCount
+      COUNT(*) AS obsCount,
+      ARRAY_TO_STRING(ARRAY_AGG(DISTINCT NULLIF(iucn_code, '')), ',') AS iucnCodes
     FROM (
       SELECT
         plot_id,
         project_no_raw,
         observation_type,
         tree_id,
+        iucn_code,
         lat,
         lng,
         (lat IS NOT NULL AND lng IS NOT NULL
@@ -142,6 +144,7 @@ export async function getPlotLocations(): Promise<PlotLocation[]> {
           project_no_raw,
           observation_type,
           tree_id,
+          iucn_code,
           SAFE_CAST(latitude AS FLOAT64) AS lat,
           SAFE_CAST(longitude AS FLOAT64) AS lng
         FROM \`${OBSERVATIONS_FQN}\`
@@ -160,6 +163,7 @@ export async function getPlotLocations(): Promise<PlotLocation[]> {
     lng: r.lng == null ? null : Number(r.lng),
     treeCount: Number(r.treeCount),
     obsCount: Number(r.obsCount),
+    iucnCodes: r.iucnCodes == null ? '' : String(r.iucnCodes),
   }))
 }
 
@@ -174,6 +178,22 @@ export async function getObservationTypeCounts(): Promise<{ type: string; count:
   const [rows] = await bq.query({ query })
   return (rows as { type: string; count: number | string }[]).map(r => ({
     type: r.type,
+    count: Number(r.count),
+  }))
+}
+
+/** Row count per iucn_code — for dashboard conservation status card. */
+export async function getIucnStatusCounts(): Promise<{ code: string; count: number }[]> {
+  const query = `
+    SELECT iucn_code AS code, COUNT(DISTINCT tree_id) AS count
+    FROM \`${OBSERVATIONS_FQN}\`
+    WHERE NULLIF(iucn_code, '') IS NOT NULL
+    GROUP BY iucn_code
+    ORDER BY count DESC
+  `
+  const [rows] = await bq.query({ query })
+  return (rows as { code: string; count: number | string }[]).map(r => ({
+    code: r.code,
     count: Number(r.count),
   }))
 }

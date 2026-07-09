@@ -86,6 +86,7 @@ export interface PlotLocation {
   lng: number | null
   treeCount: number
   obsCount: number
+  iucnCodes?: string
 }
 
 // ─── API Responses ────────────────────────────────────────────────────────────

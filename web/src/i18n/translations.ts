@@ -52,7 +52,7 @@ const en = {
   'dash.live': 'Live',
   'dash.offline': 'Offline',
   'dash.treeStems': 'Tree Stems',
-  'dash.treeStemsSub': 'Unique trees (distinct tree IDs)',
+  'dash.treeStemsSub': 'Seedling {seedling}, Woody Debris {woodyDebris}',
   'dash.plots': 'Plots',
   'dash.plotsSub': '{gps} with GPS, {noGps} without GPS',
   'dash.species': 'Species',
@@ -98,6 +98,11 @@ const en = {
   'dash.plotMapEstLegend': 'Position estimated from the project province — dot size = tree stems per plot',
   'dash.plotMapEstUnplaced': '{n} plots with an unrecognised province could not be placed',
   'dash.portalActivity': 'Portal Activity',
+  'dash.iucnStatus': 'Conservation Status (IUCN)',
+  'dash.iucnStatusSub': 'Breakdown of species by global threat level',
+  'dash.noIucnData': 'No IUCN status data found.',
+  'dash.iucnTrees': '{n} trees',
+  'dash.iucnLegend': 'Threat Level:',
 
   // Observation types
   'type.tree_stem': 'Tree stems',
@@ -445,7 +450,7 @@ const th: Record<TranslationKey, string> = {
   'dash.live': 'ออนไลน์',
   'dash.offline': 'ออฟไลน์',
   'dash.treeStems': 'ลำต้นไม้',
-  'dash.treeStemsSub': 'จำนวนต้นไม้ไม่ซ้ำ (นับตาม ID ต้นไม้)',
+  'dash.treeStemsSub': 'กล้าไม้ {seedling}, เศษไม้ {woodyDebris}',
   'dash.plots': 'แปลงสำรวจ',
   'dash.plotsSub': 'มี GPS {gps} แปลง, ไม่มี GPS {noGps} แปลง',
   'dash.species': 'ชนิดพันธุ์',
@@ -491,6 +496,11 @@ const th: Record<TranslationKey, string> = {
   'dash.plotMapEstLegend': 'ประมาณตำแหน่งจากจังหวัดของโครงการ — ขนาดจุด = จำนวนลำต้นต่อแปลง',
   'dash.plotMapEstUnplaced': '{n} แปลงไม่สามารถระบุจังหวัดได้',
   'dash.portalActivity': 'การใช้งานพอร์ทัล',
+  'dash.iucnStatus': 'สถานะการอนุรักษ์ (IUCN)',
+  'dash.iucnStatusSub': 'สัดส่วนชนิดพันธุ์ตามระดับภัยคุกคามระดับโลก',
+  'dash.noIucnData': 'ไม่พบข้อมูลสถานะ IUCN',
+  'dash.iucnTrees': '{n} ต้น',
+  'dash.iucnLegend': 'ระดับภัยคุกคาม:',
 
   // Observation types
   'type.tree_stem': 'ลำต้นไม้',

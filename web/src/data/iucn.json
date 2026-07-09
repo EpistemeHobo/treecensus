@@ -1,0 +1,27 @@
+[
+  {
+    "status": "Critically Endangered",
+    "code": "CR",
+    "color": "#D32F2F"
+  },
+  {
+    "status": "Endangered",
+    "code": "EN",
+    "color": "#E65100"
+  },
+  {
+    "status": "Near Threatened",
+    "code": "NT",
+    "color": "#FBC02D"
+  },
+  {
+    "status": "Least Concern",
+    "code": "LC",
+    "color": "#388E3C"
+  },
+  {
+    "status": "Data Deficient",
+    "code": "DD",
+    "color": "#757575"
+  }
+]

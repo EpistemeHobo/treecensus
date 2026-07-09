@@ -83,7 +83,9 @@ interface MangroveCardProps {
   // green = mangrove-roots dark green with root overlay
   // brown = same treatment on a very dark brown base (mud tone)
   // sand  = flat surface (dark #0A0A10 / light #FCFDF9), no roots — matches the sidebar
-  variant?: 'green' | 'brown' | 'sand'
+  // tintLen1 = green-blue transparent gradient, no roots
+  // tintLen2 = green-brown transparent gradient, no roots
+  variant?: 'green' | 'brown' | 'sand' | 'tintLen1' | 'tintLen2'
   seed?: number
   // Thin the roots + drop opacity — for large cards where the default pattern is too busy.
   subtle?: boolean
@@ -91,27 +93,38 @@ interface MangroveCardProps {
   // variant to the light-mode palette (day mode on the data table).
   theme?: 'dark' | 'light'
   overflowVisible?: boolean
+  style?: React.CSSProperties
 }
 
-export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false, theme = 'dark', overflowVisible = false }: MangroveCardProps) {
+export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false, theme = 'dark', overflowVisible = false, style }: MangroveCardProps) {
   const isSand = variant === 'sand'
   const isDark = theme !== 'light'
-  const bg = isSand
+  const hasRoots = variant === 'green' || variant === 'brown'
+  
+  const bg = variant === 'sand'
     ? (isDark ? '#0A0A10' : '#FCFDF9')
     : variant === 'brown'
       ? 'radial-gradient(120% 100% at 0% 0%, #33220f 0%, #271a0a 40%, #180f05 100%)'
-      : 'radial-gradient(120% 100% at 0% 0%, #12362a 0%, #0d2c22 40%, #08201a 100%)'
-  const border = isSand
-    ? (isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-[rgba(0,0,0,0.09)]')
+      : variant === 'tintLen1'
+        ? 'radial-gradient(120% 100% at 0% 0%, rgba(74, 109, 8, 0.66) 0%, rgba(12, 96, 129, 0.4) 40%, rgba(101, 150, 10, 0.4) 100%)'
+        : variant === 'tintLen2'
+          ? 'radial-gradient(120% 100% at 0% 0%, rgba(74, 109, 8, 0.66) 0%, rgba(192, 148, 91, 0.56) 40%, rgba(101, 150, 10, 0.4) 100%)'
+          : 'radial-gradient(120% 100% at 0% 0%, #12362a 0%, #0d2c22 40%, #08201a 100%)'
+          
+  const border = variant === 'tintLen1' || variant === 'tintLen2'
+    ? 'border-white/20'
     : variant === 'brown'
       ? 'border-[#4b3620]/70'
-      : 'border-[#1f4b36]/70'
+      : isSand
+        ? (isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-[rgba(0,0,0,0.09)]')
+        : 'border-[#1f4b36]/70'
+      
   return (
     <div
       className={`${isDark ? 'dark ' : ''}relative ${overflowVisible ? 'overflow-visible' : 'overflow-hidden'} rounded-lg border ${border} p-6 ${className}`}
-      style={{ background: bg }}
+      style={{ background: bg, ...style }}
     >
-      {!isSand && <MangroveRoots seed={seed} subtle={subtle} />}
+      {hasRoots && <MangroveRoots seed={seed} subtle={subtle} />}
       <div className="relative" style={{ zIndex: 1 }}>{children}</div>
     </div>
   )

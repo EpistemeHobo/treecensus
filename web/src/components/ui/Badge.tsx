@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import clsx from 'clsx'
 
-type BadgeVariant = 'default' | 'coral' | 'violet' | 'success' | 'warning' | 'danger'
+type BadgeVariant = 'default' | 'coral' | 'violet' | 'success' | 'youngleaf' | 'darkearth' | 'warning' | 'danger'
 
 interface BadgeProps {
   children: ReactNode
@@ -11,11 +11,13 @@ interface BadgeProps {
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-ghost text-muted border-dim',
-  coral:   'bg-coral/10 text-coral border-coral/20',
-  violet:  'bg-violet/10 text-violet border-violet/20',
+  coral: 'bg-coral/10 text-coral border-coral/20',
+  violet: 'bg-violet/10 text-violet border-violet/20',
   success: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  youngleaf: 'bg-green-500/20 text-green-900 border-green-500/10',
+  darkearth: 'bg-amber-500/20 text-brown-900 border-amber-500/10',
   warning: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-  danger:  'bg-rose/10 text-rose border-rose/20',
+  danger: 'bg-rose/10 text-rose border-rose/20',
 }
 
 export function Badge({ children, variant = 'default', className }: BadgeProps) {

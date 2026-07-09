@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Tooltip, useMap, Marker } from 'react-leaflet'
 import { useRouter } from 'next/navigation'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import IUCN_DATA from '@/data/iucn.json'
 
 interface MapPoint {
   plotId: string
@@ -11,6 +13,7 @@ interface MapPoint {
   lat: number
   lng: number
   treeCount: number
+  iucnCodes?: string
 }
 
 interface LeafletMapCanvasProps {
@@ -28,6 +31,31 @@ function FitBounds({ bounds }: { bounds: [number, number][] }) {
     }
   }, [map, bounds])
   return null
+}
+
+function getFireflyHtml(radius: number, baseColor: string, activeIucns: { code: string; color: string }[]) {
+  const size = (radius + 4) * 2
+  const center = size / 2
+  
+  let dotsSvg = ''
+  if (activeIucns.length > 0) {
+    const dotRadius = 2.5
+    const gap = 1
+    const totalW = activeIucns.length * (dotRadius * 2) + (activeIucns.length - 1) * gap
+    const startX = center - totalW / 2 + dotRadius
+    
+    dotsSvg = activeIucns.map((iucn, idx) => {
+      const x = startX + idx * (dotRadius * 2 + gap)
+      return `<circle cx="${x}" cy="${center}" r="${dotRadius}" fill="${iucn.color}" stroke="#000" stroke-width="0.5" />`
+    }).join('')
+  }
+  
+  return `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="overflow: visible; display: block;">
+      <circle cx="${center}" cy="${center}" r="${radius}" fill="${baseColor}" fill-opacity="0.35" stroke="${baseColor}" stroke-opacity="0.8" stroke-width="1.5" />
+      ${dotsSvg}
+    </svg>
+  `
 }
 
 export default function LeafletMapCanvas({ points, labels = [], color, height }: LeafletMapCanvasProps) {
@@ -64,48 +92,57 @@ export default function LeafletMapCanvas({ points, labels = [], color, height }:
 
         {points.map(p => {
           const radius = 6 + 16 * Math.sqrt(p.treeCount / maxTrees)
+          const codes = p.iucnCodes ? p.iucnCodes.split(',').map(c => c.trim().toUpperCase()) : []
+          const activeIucns = IUCN_DATA.filter(item => item.code.toUpperCase() !== 'LC' && codes.includes(item.code.toUpperCase()))
+          
+          const icon = L.divIcon({
+            html: getFireflyHtml(radius, color, activeIucns),
+            className: 'bg-transparent border-none',
+            iconSize: [(radius + 4) * 2, (radius + 4) * 2],
+            iconAnchor: [radius + 4, radius + 4]
+          })
+
           return (
-            <CircleMarker
+            <Marker
               key={p.plotId}
-              center={[p.lat, p.lng]}
-              radius={radius}
-              pathOptions={{
-                color: color,
-                fillColor: color,
-                fillOpacity: 0.5,
-                weight: 1.5,
-              }}
+              position={[p.lat, p.lng]}
+              icon={icon}
               eventHandlers={{
                 click: () => {
                   router.push(`/data?field=plot_id&op=equals&value=${encodeURIComponent(p.plotId)}`)
                 },
               }}
             >
-              <Tooltip direction="top" offset={[0, -5]} opacity={0.9}>
+              <Tooltip direction="top" offset={[0, -radius]} opacity={0.9}>
                 <span className="font-sans text-[12px] text-[#0D0D14] font-medium leading-none">
                   {p.tooltip}
                 </span>
               </Tooltip>
-            </CircleMarker>
+            </Marker>
           )
         })}
 
-        {labels.map(l => (
-          <CircleMarker
-            key={l.text}
-            center={[l.lat, l.lng]}
-            radius={2}
-            pathOptions={{
-              color: 'rgba(255, 255, 255, 0.3)',
-              fillColor: 'transparent',
-              weight: 1,
-            }}
-          >
-            <Tooltip permanent direction="center" className="bg-transparent border-none shadow-none text-white/50 text-[10px] pointer-events-none">
-              {l.text}
-            </Tooltip>
-          </CircleMarker>
-        ))}
+        {labels.map(l => {
+          // Render a custom small circle marker using L.divIcon to bypass typescript mismatch with dynamic Marker
+          const icon = L.divIcon({
+            html: `<svg width="4" height="4" viewBox="0 0 4 4"><circle cx="2" cy="2" r="2" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1" /></svg>`,
+            className: 'bg-transparent border-none',
+            iconSize: [4, 4],
+            iconAnchor: [2, 2]
+          })
+          
+          return (
+            <Marker
+              key={l.text}
+              position={[l.lat, l.lng]}
+              icon={icon}
+            >
+              <Tooltip permanent direction="center" className="bg-transparent border-none shadow-none text-white/50 text-[10px] pointer-events-none">
+                {l.text}
+              </Tooltip>
+            </Marker>
+          )
+        })}
       </MapContainer>
     </div>
   )
