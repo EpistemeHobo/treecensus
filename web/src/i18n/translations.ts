@@ -262,6 +262,8 @@ const en = {
   'maps.subtitle': 'Geographic distribution and live statistics',
   'maps.censusReport': 'Census Report',
   'maps.openLooker': 'Open in Looker Studio',
+  'maps.tabFocus': 'Focus Area Statistics',
+  'maps.tabLooker': 'Looker Studio Overall Statistics',
 
   // Reports
   'reports.title': 'Reports',
@@ -653,6 +655,8 @@ const th: Record<TranslationKey, string> = {
   'maps.subtitle': 'การกระจายเชิงพื้นที่และสถิติแบบเรียลไทม์',
   'maps.censusReport': 'รายงานสำมะโน',
   'maps.openLooker': 'เปิดใน Looker Studio',
+  'maps.tabFocus': 'สถิติพื้นที่มุ่งเน้น',
+  'maps.tabLooker': 'สถิติภาพรวม Looker Studio',
 
   // Reports
   'reports.title': 'รายงาน',

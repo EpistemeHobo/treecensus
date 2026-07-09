@@ -353,7 +353,6 @@ function EstimatedMapCard({ plots }: { plots: PlotLocation[] }) {
                 height={fullscreen ? 'calc(100vh - 240px)' : 320}
                 color="#C4956A"
                 points={placed}
-                labels={Array.from(provinces, ([text, c]) => ({ text, lat: c.lat, lng: c.lng }))}
               />
             )}
             <div className="flex flex-col gap-1 mt-4 text-[11px] text-muted">
