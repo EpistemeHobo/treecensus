@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { getGcpCredentials } from './gcp-credentials'
 import { isLocalMode, readCollection, writeCollection } from './local-store'
 import { OBSERVATIONS_TABLE } from './bigquery'
+import { sendMessage } from './messages'
 
 const DATASET = process.env.BIGQUERY_DATASET ?? 'tree_census'
 const TABLE = 'data_flags'
@@ -161,6 +162,25 @@ export async function reviewFlag(
         mapRecordId: flag.mapRecordId,
       },
     })
+  }
+ 
+  // 3. Send notification message to the user who flagged the data
+  try {
+    const title = status === 'approved' 
+      ? `Data Correction Approved: Record #${flag.mapRecordId}`
+      : `Data Correction Rejected: Record #${flag.mapRecordId}`
+    
+    const content = `Your request to correct the field "${flag.field}" from "${flag.oldValue ?? ''}" to "${flag.newValue ?? ''}" has been ${status}.\n\nReason for flag: ${flag.reason ?? 'No reason provided'}`
+
+    await sendMessage({
+      userEmail: flag.flaggedBy,
+      title,
+      content,
+      adminComment: reviewNotes ?? null,
+      status,
+    })
+  } catch (err) {
+    console.error('[flags] Failed to send notification message:', err)
   }
 
   return { ...flag, ...patch }

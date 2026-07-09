@@ -346,6 +346,7 @@ export default function DataPage() {
   const [tableFullscreen, setTableFullscreen] = useState(false)
   const [tableTheme, setTableTheme] = useState<'dark' | 'light'>('dark')
   const [insightsOpen, setInsightsOpen] = useState(false)
+  const [insightsTab, setInsightsTab] = useState<'overview' | 'biomass'>('overview')
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState<{ loaded: number; total: number } | null>(null)
   const [exportError, setExportError] = useState('')
@@ -374,6 +375,28 @@ export default function DataPage() {
       .then(r => r.json())
       .then(j => { if (j.data) setSchemaFields(j.data.columns.map((c: { name: string }) => c.name)) })
       .catch(() => { })
+  }, [])
+
+  // Deep link — e.g. the dashboard firefly map sends
+  // /data?field=plot_id&op=equals&value=P01. Pre-fills one condition into the
+  // builder and applies it immediately (which also triggers the fetch).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const showInsights = params.get('insights')
+    if (showInsights === 'biomass') {
+      setInsightsTab('biomass')
+      setInsightsOpen(true)
+      setLoaded(true)
+    }
+    const field = params.get('field')
+    if (!field) return
+    const opParam = params.get('op')
+    const op: FilterOp = OPERATORS.some(o => o.value === opParam) ? (opParam as FilterOp) : 'equals'
+    const noValue = OPERATORS.find(o => o.value === op)?.noValue
+    const filter: Filter = { field, op, value: noValue ? '' : (params.get('value') ?? '') }
+    setDraftFilters([filter])
+    setApplied(a => ({ ...a, filters: [filter] }))
+    setLoaded(true)
   }, [])
 
   // Fetch rows whenever the applied query or page changes.
@@ -964,6 +987,7 @@ export default function DataPage() {
         open={insightsOpen}
         onClose={() => setInsightsOpen(false)}
         query={{ search: applied.search, filters: applied.filters, dateFrom: applied.dateFrom, dateTo: applied.dateTo }}
+        defaultTab={insightsTab}
       />
 
       <FlagModal

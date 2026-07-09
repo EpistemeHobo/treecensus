@@ -1,7 +1,7 @@
 import { DashboardContent } from '@/components/portal/DashboardContent'
-import { getDashboardStats, getObservationTypeCounts } from '@/lib/bigquery'
+import { getDashboardStats, getObservationTypeCounts, getPlotLocations } from '@/lib/bigquery'
 import { getActivityLogStats } from '@/lib/audit'
-import type { DashboardStats } from '@/types'
+import type { DashboardStats, PlotLocation } from '@/types'
 
 // Always render fresh — these are live counts from BigQuery.
 export const dynamic = 'force-dynamic'
@@ -18,6 +18,7 @@ const ZERO_STATS: DashboardStats = {
 export default async function DashboardPage() {
   let stats = ZERO_STATS
   let typeCounts: { type: string; count: number }[] = []
+  let plots: PlotLocation[] = []
   let activityStats = {
     latestAccessEmail: '—',
     latestAccessTime: '—',
@@ -32,14 +33,16 @@ export default async function DashboardPage() {
   try {
     const results = await Promise.allSettled([
       getDashboardStats(),
-      getObservationTypeCounts(),
       getActivityLogStats(),
+      getPlotLocations(),
+      getObservationTypeCounts(),
     ])
-    
+
     if (results[0].status === 'fulfilled') stats = results[0].value
-    if (results[1].status === 'fulfilled') typeCounts = results[1].value
-    if (results[2].status === 'fulfilled') activityStats = results[2].value
-    
+    if (results[1].status === 'fulfilled') activityStats = results[1].value
+    if (results[2].status === 'fulfilled') plots = results[2].value
+    if (results[3].status === 'fulfilled') typeCounts = results[3].value
+
     connected = true
   } catch (err) {
     console.error('[dashboard] BigQuery unavailable:', err)
@@ -48,8 +51,9 @@ export default async function DashboardPage() {
   return (
     <DashboardContent
       stats={stats}
-      typeCounts={typeCounts}
       activityStats={activityStats}
+      plots={plots}
+      typeCounts={typeCounts}
       connected={connected}
     />
   )

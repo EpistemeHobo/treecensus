@@ -90,9 +90,10 @@ interface MangroveCardProps {
   // 'dark' (default) keeps the app's dark surfaces; 'light' switches the sand
   // variant to the light-mode palette (day mode on the data table).
   theme?: 'dark' | 'light'
+  overflowVisible?: boolean
 }
 
-export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false, theme = 'dark' }: MangroveCardProps) {
+export function MangroveCard({ children, className = '', variant = 'green', seed = 1, subtle = false, theme = 'dark', overflowVisible = false }: MangroveCardProps) {
   const isSand = variant === 'sand'
   const isDark = theme !== 'light'
   const bg = isSand
@@ -107,7 +108,7 @@ export function MangroveCard({ children, className = '', variant = 'green', seed
       : 'border-[#1f4b36]/70'
   return (
     <div
-      className={`${isDark ? 'dark ' : ''}relative overflow-hidden rounded-lg border ${border} p-6 ${className}`}
+      className={`${isDark ? 'dark ' : ''}relative ${overflowVisible ? 'overflow-visible' : 'overflow-hidden'} rounded-lg border ${border} p-6 ${className}`}
       style={{ background: bg }}
     >
       {!isSand && <MangroveRoots seed={seed} subtle={subtle} />}

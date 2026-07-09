@@ -1300,6 +1300,13 @@
       "info",
       "warning",
       "info;warning"
+    ],
+    "iucn_code": [
+      "CR",
+      "EN",
+      "NT",
+      "LC",
+      "DD"
     ]
   }
 }

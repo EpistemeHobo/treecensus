@@ -12,7 +12,8 @@
       "Bash(cd \"/c/Users/AlNak/Documents/v@pp cohort v2/frontend/src\" && grep -rl \"UI_dict\" . 2>/dev/null; echo \"===\"; grep -rn \"UI_dict\\\\|uiLabel\\\\|ui_dict\\\\|getLabel\\\\|topic_name\" ./lib 2>/dev/null | grep -v \".json\" | head -30)",
       "Bash(npx tsc *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(node \"C:/Users/AlNak/AppData/Local/Temp/claude/C--Users-AlNak-Documents-treecensus/d2d871d2-31f8-46da-8190-b754075daade/scratchpad/check2.js\")"
+      "Bash(node \"C:/Users/AlNak/AppData/Local/Temp/claude/C--Users-AlNak-Documents-treecensus/d2d871d2-31f8-46da-8190-b754075daade/scratchpad/check2.js\")",
+      "mcp__visualize__read_me"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import { BigQuery } from '@google-cloud/bigquery'
-import type { DashboardStats, QueryResult } from '@/types'
+import type { DashboardStats, PlotLocation, QueryResult } from '@/types'
 
 // ─── Client ──────────────────────────────────────────────────────────────────
 // Credentials come from GOOGLE_APPLICATION_CREDENTIALS env var (service account
@@ -110,6 +110,57 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalBiomass: Number(r.totalBiomass ?? 0),
     lastSyncAt: (r.lastSyncAt as string) ?? '—',
   }
+}
+
+/** Per-plot GPS centroid + counts — feeds the dashboard firefly maps.
+ *  Returns every plot; lat/lng are NULL when the plot has no usable GPS row,
+ *  so the dashboard can split GPS vs estimated-location maps. */
+export async function getPlotLocations(): Promise<PlotLocation[]> {
+  const query = `
+    SELECT
+      plot_id AS plotId,
+      MAX(NULLIF(project_no_raw, '')) AS projectNo,
+      AVG(IF(valid, lat, NULL)) AS lat,
+      AVG(IF(valid, lng, NULL)) AS lng,
+      COUNT(DISTINCT IF(observation_type = 'tree_stem', tree_id, NULL)) AS treeCount,
+      COUNT(*) AS obsCount
+    FROM (
+      SELECT
+        plot_id,
+        project_no_raw,
+        observation_type,
+        tree_id,
+        lat,
+        lng,
+        (lat IS NOT NULL AND lng IS NOT NULL
+          AND lat BETWEEN -90 AND 90
+          AND lng BETWEEN -180 AND 180
+          AND NOT (lat = 0 AND lng = 0)) AS valid
+      FROM (
+        SELECT
+          plot_id,
+          project_no_raw,
+          observation_type,
+          tree_id,
+          SAFE_CAST(latitude AS FLOAT64) AS lat,
+          SAFE_CAST(longitude AS FLOAT64) AS lng
+        FROM \`${OBSERVATIONS_FQN}\`
+        WHERE NULLIF(plot_id, '') IS NOT NULL
+      )
+    )
+    GROUP BY plot_id
+    ORDER BY treeCount DESC
+    LIMIT 1000
+  `
+  const [rows] = await bq.query({ query })
+  return (rows as Record<string, unknown>[]).map(r => ({
+    plotId: String(r.plotId),
+    projectNo: r.projectNo == null ? '' : String(r.projectNo),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+    treeCount: Number(r.treeCount),
+    obsCount: Number(r.obsCount),
+  }))
 }
 
 /** Row count per observation_type — for dashboard breakdown charts. */
@@ -634,111 +685,124 @@ export async function getObservationBiomass(opts: {
   dateTo?: string
 }): Promise<BiomassResult> {
   const { where, params } = await buildObservationWhere(opts)
-  const { keys, values } = densityLookupArrays()
 
-  const allParams = {
-    ...params,
-    densKeys: keys,
-    densValues: values,
-    defaultDensity: WOOD_DENSITY.defaultDensity,
-  }
-
-  // Shared CTE chain: girth → DBH, species-keyed density join, per-stem biomass.
-  const WITH_STEMS = `
-    WITH density AS (
-      SELECT k AS species, v AS density
-      FROM UNNEST(@densKeys) AS k WITH OFFSET ko
-      JOIN UNNEST(@densValues) AS v WITH OFFSET vo ON ko = vo
-    ),
-    stems AS (
-      SELECT
-        COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''), NULLIF(thai_name, ''), NULLIF(species_raw, ''), '(unspecified)') AS species_label,
-        COALESCE(NULLIF(project_no_raw, ''), '(blank)') AS project_label,
-        COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS plot_label,
-        LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,
-        SAFE_CAST(gbh_cm AS FLOAT64) / ACOS(-1) AS dbh,
-        SAFE_CAST(total_height_m AS FLOAT64) AS h
-      FROM \`${OBSERVATIONS_FQN}\`
-      WHERE ${where} AND observation_type = 'tree_stem'
-    ),
-    biomass AS (
-      SELECT
-        s.species_label, s.project_label, s.plot_label,
-        (s.species_key IS NOT NULL AND d.density IS NOT NULL) AS density_matched,
-        COALESCE(d.density, @defaultDensity) AS rho,
-        s.dbh, s.h,
-        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46) AS komi_agb,
-        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46)
-          + 0.199 * POW(COALESCE(d.density, @defaultDensity), 0.899) * POW(s.dbh, 2.22) AS komi_total,
-        CASE WHEN s.h IS NOT NULL AND s.h > 0
-          THEN 0.0673 * POW(COALESCE(d.density, @defaultDensity) * s.dbh * s.dbh * s.h, 0.976)
-          ELSE NULL END AS chave
-      FROM stems s
-      LEFT JOIN density d ON d.species = s.species_key
-      WHERE s.dbh IS NOT NULL AND s.dbh > 0
-    )`
-
-  const groupQuery = (labelCol: string) => `
-    ${WITH_STEMS}
+  const query = `
     SELECT
-      ${labelCol} AS label,
-      COUNT(*) AS trees,
-      SUM(komi_agb) AS komiAgbSum, AVG(komi_agb) AS komiAgbAvg,
-      SUM(komi_total) AS komiTotalSum, AVG(komi_total) AS komiTotalAvg,
-      SUM(chave) AS chaveSum, AVG(chave) AS chaveAvg
-    FROM biomass
-    GROUP BY label
-    ORDER BY komiAgbSum DESC
-    LIMIT 12
+      COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''), NULLIF(thai_name, ''), NULLIF(species_raw, ''), '(unspecified)') AS species_label,
+      COALESCE(NULLIF(project_no_raw, ''), '(blank)') AS project_label,
+      COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS plot_label,
+      LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,
+      SAFE_CAST(gbh_cm AS FLOAT64) AS gbh_cm,
+      SAFE_CAST(total_height_m AS FLOAT64) AS h
+    FROM \`${OBSERVATIONS_FQN}\`
+    WHERE ${where} AND observation_type = 'tree_stem'
   `
 
-  const run = async (query: string) => {
-    const [rows] = await bq.query({ query, params: allParams })
-    return rows as Record<string, unknown>[]
+  const [rows] = await bq.query({ query, params })
+
+  const densityMap = new Map<string, number>()
+  for (const s of WOOD_DENSITY.species) {
+    densityMap.set(s.scientific_name.toLowerCase(), s.density)
   }
 
-  const [speciesRows, projectRows, plotRows, summaryRows] = await Promise.all([
-    run(groupQuery('species_label')),
-    run(groupQuery('project_label')),
-    run(groupQuery('plot_label')),
-    run(`
-      ${WITH_STEMS}
-      SELECT
-        COUNT(*) AS trees,
-        AVG(CAST(density_matched AS INT64)) AS matchedFrac,
-        SUM(komi_agb) AS grandKomiAgb,
-        SUM(komi_total) AS grandKomiTotal,
-        SUM(chave) AS grandChave
-      FROM biomass
-    `),
-  ])
+  interface Accumulator {
+    label: string
+    trees: number
+    komiAgbSum: number
+    komiTotalSum: number
+    chaveSum: number
+    hCount: number
+  }
 
-  const toGroups = (rows: Record<string, unknown>[]): BiomassGroup[] =>
-    rows.map(r => ({
-      label: String(r.label ?? '—') || '(blank)',
-      trees: Number(r.trees ?? 0),
-      komiAgbSum: Number(r.komiAgbSum ?? 0),
-      komiAgbAvg: Number(r.komiAgbAvg ?? 0),
-      komiTotalSum: Number(r.komiTotalSum ?? 0),
-      komiTotalAvg: Number(r.komiTotalAvg ?? 0),
-      chaveSum: Number(r.chaveSum ?? 0),
-      chaveAvg: Number(r.chaveAvg ?? 0),
-    }))
+  const speciesMap = new Map<string, Accumulator>()
+  const projectMap = new Map<string, Accumulator>()
+  const plotMap = new Map<string, Accumulator>()
 
-  const s = (summaryRows[0] ?? {}) as Record<string, unknown>
+  let grandTrees = 0
+  let matchedCount = 0
+  let grandKomiAgb = 0
+  let grandKomiTotal = 0
+  let grandChave = 0
+  let grandChaveCount = 0
+
+  for (const row of rows as any[]) {
+    const gbh = Number(row.gbh_cm)
+    if (isNaN(gbh) || gbh <= 0) continue
+
+    const dbh = gbh / Math.PI
+    const h = row.h !== null && !isNaN(Number(row.h)) ? Number(row.h) : null
+    const speciesKey = row.species_key || ''
+    
+    const densityVal = densityMap.get(speciesKey)
+    const isMatched = densityVal !== undefined
+    const rho = isMatched ? densityVal : WOOD_DENSITY.defaultDensity
+
+    const komiAgb = 0.251 * rho * Math.pow(dbh, 2.46)
+    const komiTotal = komiAgb + 0.199 * Math.pow(rho, 0.899) * Math.pow(dbh, 2.22)
+    const hasHeight = h !== null && h > 0
+    const chave = hasHeight ? 0.0673 * Math.pow(rho * dbh * dbh * h, 0.976) : 0
+
+    grandTrees++
+    if (isMatched) matchedCount++
+    grandKomiAgb += komiAgb
+    grandKomiTotal += komiTotal
+    if (hasHeight) {
+      grandChave += chave
+      grandChaveCount++
+    }
+
+    const speciesLabel = row.species_label || '(unspecified)'
+    const projectLabel = row.project_label || '(blank)'
+    const plotLabel = row.plot_label || '(blank)'
+
+    const addToMap = (map: Map<string, Accumulator>, key: string, label: string) => {
+      let accum = map.get(key)
+      if (!accum) {
+        accum = { label, trees: 0, komiAgbSum: 0, komiTotalSum: 0, chaveSum: 0, hCount: 0 }
+        map.set(key, accum)
+      }
+      accum.trees++
+      accum.komiAgbSum += komiAgb
+      accum.komiTotalSum += komiTotal
+      if (hasHeight) {
+        accum.chaveSum += chave
+        accum.hCount++
+      }
+    }
+
+    addToMap(speciesMap, speciesLabel, speciesLabel)
+    addToMap(projectMap, projectLabel, projectLabel)
+    addToMap(plotMap, plotLabel, plotLabel)
+  }
+
+  const mapToBiomassGroup = (map: Map<string, Accumulator>): BiomassGroup[] => {
+    return Array.from(map.values())
+      .sort((a, b) => b.komiAgbSum - a.komiAgbSum)
+      .slice(0, 12)
+      .map(item => ({
+        label: item.label,
+        trees: item.trees,
+        komiAgbSum: item.komiAgbSum,
+        komiAgbAvg: item.trees > 0 ? item.komiAgbSum / item.trees : 0,
+        komiTotalSum: item.komiTotalSum,
+        komiTotalAvg: item.trees > 0 ? item.komiTotalSum / item.trees : 0,
+        chaveSum: item.chaveSum,
+        chaveAvg: item.hCount > 0 ? item.chaveSum / item.hCount : 0,
+      }))
+  }
 
   return {
-    trees: Number(s.trees ?? 0),
+    trees: grandTrees,
     defaultDensity: WOOD_DENSITY.defaultDensity,
     densityVersion: WOOD_DENSITY.version,
     densityReviewed: WOOD_DENSITY.reviewed,
-    densityMatchedFrac: s.matchedFrac == null ? 0 : Number(s.matchedFrac),
-    grandKomiAgb: Number(s.grandKomiAgb ?? 0),
-    grandKomiTotal: Number(s.grandKomiTotal ?? 0),
-    grandChave: Number(s.grandChave ?? 0),
-    bySpecies: toGroups(speciesRows),
-    byProject: toGroups(projectRows),
-    byPlot: toGroups(plotRows),
+    densityMatchedFrac: grandTrees > 0 ? matchedCount / grandTrees : 0,
+    grandKomiAgb,
+    grandKomiTotal,
+    grandChave,
+    bySpecies: mapToBiomassGroup(speciesMap),
+    byProject: mapToBiomassGroup(projectMap),
+    byPlot: mapToBiomassGroup(plotMap),
   }
 }
 

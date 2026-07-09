@@ -10,6 +10,83 @@ import {
 import { X, BarChart3, Leaf, Download } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
 import { WOOD_DENSITY } from '@/lib/wood-density'
+import { DICT_BY_NAME } from '@/lib/data-dictionary'
+import type { TranslationKey } from '@/i18n/translations'
+
+type FilterOp = 'contains' | 'equals' | 'not_equals' | 'starts_with' | 'gt' | 'lt' | 'not_empty' | 'empty'
+
+const OPERATORS: { value: FilterOp; labelKey: TranslationKey; noValue?: boolean }[] = [
+  { value: 'contains', labelKey: 'op.contains' },
+  { value: 'equals', labelKey: 'op.equals' },
+  { value: 'not_equals', labelKey: 'op.not_equals' },
+  { value: 'starts_with', labelKey: 'op.starts_with' },
+  { value: 'gt', labelKey: 'op.gt' },
+  { value: 'lt', labelKey: 'op.lt' },
+  { value: 'not_empty', labelKey: 'op.not_empty', noValue: true },
+  { value: 'empty', labelKey: 'op.empty', noValue: true },
+]
+
+function humanize(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function getFieldLabel(name: string, lang: string): string {
+  const d = DICT_BY_NAME.get(name)
+  if (!d) return humanize(name)
+  if (lang === 'th') {
+    return d.th_label || d.label
+  }
+  return d.label
+}
+
+function describeFilter(f: Filter, t: any, lang: string): string {
+  const op = OPERATORS.find(o => o.value === f.op)
+  const label = op ? t(op.labelKey) : f.op
+  const fieldLabel = getFieldLabel(f.field, lang)
+  return op?.noValue ? `${fieldLabel} ${label}` : `${fieldLabel} ${label} “${f.value}”`
+}
+
+function getQueryDescription(
+  query: { search: string; filters: Filter[]; dateFrom?: string; dateTo?: string },
+  t: any,
+  lang: string
+): string {
+  const activeConditions = query.filters.filter(f => f.field)
+  const parts: string[] = []
+
+  if (activeConditions.length > 0) {
+    parts.push(
+      activeConditions.map(f => describeFilter(f, t, lang)).join(', ')
+    )
+  }
+
+  if (query.search) {
+    const keywordText = `${t('data.keyword')} “${query.search}”`
+    parts.push(keywordText)
+  }
+
+  if (query.dateFrom || query.dateTo) {
+    const dateText = query.dateFrom && query.dateTo
+      ? t('data.betweenDates', { a: query.dateFrom, b: query.dateTo })
+      : query.dateFrom
+        ? t('data.onAfter', { d: query.dateFrom })
+        : t('data.onBefore', { d: query.dateTo })
+    parts.push(`${t('data.added')} ${dateText}`)
+  }
+
+  if (parts.length === 0) {
+    return t('insights.wholeData')
+  }
+
+  const separator = lang === 'th' ? ' และ ' : ' and '
+  if (parts.length <= 2) {
+    return parts.join(separator)
+  } else {
+    const last = parts[parts.length - 1]
+    const rest = parts.slice(0, -1).join(', ')
+    return `${rest}${separator}${last}`
+  }
+}
 
 // Build and download the wood-density table as CSV: thai_name, scientific_name, ρ.
 // A UTF-8 BOM is prepended so Excel renders the Thai names correctly.
@@ -79,6 +156,7 @@ interface InsightsModalProps {
   open: boolean
   onClose: () => void
   query: { search: string; filters: Filter[]; dateFrom?: string; dateTo?: string }
+  defaultTab?: 'overview' | 'biomass'
 }
 
 // Firefly-green through sand-amber — the app's two accent hues plus supporting tones.
@@ -206,9 +284,15 @@ function Donut({ data }: { data: CategoryCount[] }) {
   )
 }
 
-export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
+export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: InsightsModalProps) {
   const { t, lang } = useI18n()
-  const [tab, setTab] = useState<'overview' | 'biomass'>('overview')
+  const [tab, setTab] = useState<'overview' | 'biomass'>(defaultTab)
+
+  useEffect(() => {
+    if (open) {
+      setTab(defaultTab)
+    }
+  }, [open, defaultTab])
 
   const [data, setData] = useState<Insights | null>(null)
   const [loading, setLoading] = useState(false)
@@ -275,7 +359,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
   // Reset to the overview tab and clear both datasets whenever the query changes.
   useEffect(() => {
     if (!open) return
-    setTab('overview')
+    setTab('biomass')
     setBiomass(null); setBmError('')
     let cancelled = false
     setLoading(true); setError(''); setData(null)
@@ -299,7 +383,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- error text uses the language active at load time
-  }, [open, query])
+  }, [open, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo])
 
   // Biomass is fetched lazily the first time the tab is opened for this query.
   useEffect(() => {
@@ -326,7 +410,7 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
       .finally(() => { if (!cancelled) setBmLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab, query])
+  }, [open, tab, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo])
 
   // Pick the active equation's per-group sum, scaled by the carbon fraction.
   const scale = carbon ? CARBON_FRACTION : 1
@@ -365,8 +449,8 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
               <BarChart3 size={16} className="text-coral" />
               <h3 className="text-[14px] font-semibold text-neutral">{t('insights.title')}</h3>
               {data && (
-                <span className="text-[12px] text-muted">
-                  {t('insights.recordsInView', { n: data.total.toLocaleString() })}
+                <span className="text-[12px] text-muted max-w-lg truncate" title={getQueryDescription(query, t, lang)}>
+                  — {getQueryDescription(query, t, lang)} ({t('insights.recordsInView', { n: data.total.toLocaleString() }).replace(/^[—\s]*/, '')})
                 </span>
               )}
             </div>
@@ -378,8 +462,8 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
           <div className="flex items-center justify-between px-6 mt-3">
             <div className="flex gap-1">
               {([
-                { key: 'overview' as const, label: t('insights.tabOverview'), icon: BarChart3 },
                 { key: 'biomass' as const, label: t('insights.tabBiomass'), icon: Leaf },
+                { key: 'overview' as const, label: t('insights.tabOverview'), icon: BarChart3 },
               ]).map(tb => (
                 <button
                   key={tb.key}
@@ -428,7 +512,10 @@ export function InsightsModal({ open, onClose, query }: InsightsModalProps) {
               {data && !loading && data.total > 0 && (
                 <div id="overview-charts-container" className="flex flex-col gap-5">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                    <StatTile label={t('insights.records')} value={data.total.toLocaleString()} />
+                    <StatTile
+                      label={`${t('insights.records')} (${getQueryDescription(query, t, lang)})`}
+                      value={data.total.toLocaleString()}
+                    />
                     <StatTile label={t('insights.distinctSpecies')} value={data.distinctSpecies.toLocaleString()} />
                     <StatTile label={t('insights.distinctPlots')} value={data.distinctPlots.toLocaleString()} />
                     <StatTile label={t('insights.avgGbh')} value={fmt(data.avgGbhCm)} />

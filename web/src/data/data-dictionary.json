@@ -404,6 +404,18 @@
       "th_unit": null
     },
     {
+      "name": "iucn_code",
+      "label": "IUCN Code",
+      "group": "Core",
+      "type": "enum",
+      "unit": "",
+      "appliesTo": "all",
+      "description": "IUCN code of the species.",
+      "th_label": "รหัส IUCN",
+      "th_description": "รหัส IUCN ของชนิดพันธุ์",
+      "th_unit": null
+    },
+    {
       "name": "tree_id",
       "label": "Tree ID",
       "group": "Tree stem",

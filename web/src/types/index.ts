@@ -77,6 +77,17 @@ export interface DashboardStats {
   totalBiomass: number
 }
 
+/** Per-plot GPS centroid + counts — feeds the dashboard firefly maps.
+ *  lat/lng are null when the plot has no usable GPS coordinates. */
+export interface PlotLocation {
+  plotId: string
+  projectNo: string
+  lat: number | null
+  lng: number | null
+  treeCount: number
+  obsCount: number
+}
+
 // ─── API Responses ────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
