@@ -1,0 +1,1144 @@
+{
+  "generatedAt": "2026-07-09T11:52:19.215Z",
+  "source": "seea-2026.tree_census.observations",
+  "levels": {
+    "province": [
+      {
+        "code": "จันทบุรี",
+        "labelTh": "จันทบุรี",
+        "labelEn": "Chanthaburi"
+      },
+      {
+        "code": "ชลบุรี",
+        "labelTh": "ชลบุรี",
+        "labelEn": "Chonburi"
+      },
+      {
+        "code": "ชุมพร",
+        "labelTh": "ชุมพร",
+        "labelEn": "Chumphon"
+      },
+      {
+        "code": "ตราด",
+        "labelTh": "ตราด",
+        "labelEn": "Trat"
+      },
+      {
+        "code": "นครศรีธรรมราช",
+        "labelTh": "นครศรีธรรมราช",
+        "labelEn": "Nakhon Si Thammarat"
+      },
+      {
+        "code": "นราธิวาส",
+        "labelTh": "นราธิวาส",
+        "labelEn": "Narathiwat"
+      },
+      {
+        "code": "ประจวบคีรีขันธ์",
+        "labelTh": "ประจวบคีรีขันธ์",
+        "labelEn": "Prachuap Khiri Khan"
+      },
+      {
+        "code": "ปัตตานี",
+        "labelTh": "ปัตตานี",
+        "labelEn": "Pattani"
+      },
+      {
+        "code": "ระยอง",
+        "labelTh": "ระยอง",
+        "labelEn": "Rayong"
+      },
+      {
+        "code": "สงขลา",
+        "labelTh": "สงขลา",
+        "labelEn": "Songkhla"
+      },
+      {
+        "code": "สุราษฎร์ธานี",
+        "labelTh": "สุราษฎร์ธานี",
+        "labelEn": "Surat Thani"
+      }
+    ],
+    "district": [],
+    "subdistrict": [],
+    "plot": [
+      {
+        "code": "plot_001",
+        "label": "1. ขลุง1",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_002",
+        "label": "2. ขลุง2",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_003",
+        "label": "3. ขลุง3",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_004",
+        "label": "4. ท่าแฉลบ",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_005",
+        "label": "5. ท่าใหม่",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_006",
+        "label": "6. นายายอาม",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_007",
+        "label": "7. บางชัน",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_008",
+        "label": "8. ศูนย์พี่เตี้ย",
+        "provinceRaw": "จันทบุรี"
+      },
+      {
+        "code": "plot_009",
+        "label": "1. คลองตำหรุ",
+        "provinceRaw": "ชลบุรี"
+      },
+      {
+        "code": "plot_010",
+        "label": "2. สะพานชลมารควิถี",
+        "provinceRaw": "ชลบุรี"
+      },
+      {
+        "code": "plot_011",
+        "label": "3. หนองไม้แดง",
+        "provinceRaw": "ชลบุรี"
+      },
+      {
+        "code": "plot_012",
+        "label": "ปะทิว",
+        "provinceRaw": "ชุมพร"
+      },
+      {
+        "code": "plot_013",
+        "label": "ทุ่งตะโก 180369",
+        "provinceRaw": "ชุมพร"
+      },
+      {
+        "code": "plot_014",
+        "label": "ปะทิว 170369",
+        "provinceRaw": "ชุมพร"
+      },
+      {
+        "code": "plot_015",
+        "label": "สวี 180369",
+        "provinceRaw": "ชุมพร"
+      },
+      {
+        "code": "plot_016",
+        "label": "1. ท่าตะเภา",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_017",
+        "label": "2. ตราดไกล (ท่าพริก)",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_018",
+        "label": "3. ไม้รูด",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_019",
+        "label": "4. คลองนา (เดินเหนื่อย)",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_020",
+        "label": "5. แสนตุ้ง (W กลางถนน)",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_021",
+        "label": "6. แม่น้ำตราด (N,W ตกน้ำ)",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_022",
+        "label": "7. น้ำเชี่ยว",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_023",
+        "label": "8. คลองตาจิว",
+        "provinceRaw": "ตราด"
+      },
+      {
+        "code": "plot_024",
+        "label": "ขนอม 090269",
+        "provinceRaw": "นครศรีฯ"
+      },
+      {
+        "code": "plot_025",
+        "label": "คลองบางลึก 120369",
+        "provinceRaw": "นครศรีฯ"
+      },
+      {
+        "code": "plot_026",
+        "label": "บางลึก 110369",
+        "provinceRaw": "นครศรีฯ"
+      },
+      {
+        "code": "plot_027",
+        "label": "23",
+        "provinceRaw": "นาราธิวาส"
+      },
+      {
+        "code": "plot_028",
+        "label": "24",
+        "provinceRaw": "นาราธิวาส"
+      },
+      {
+        "code": "plot_029",
+        "label": "25",
+        "provinceRaw": "นาราธิวาส"
+      },
+      {
+        "code": "plot_030",
+        "label": "1. คลองวาฬ",
+        "provinceRaw": "ประจวบคีรีขันธ์"
+      },
+      {
+        "code": "plot_031",
+        "label": "2. คลองวาฬ (กองขยะ)",
+        "provinceRaw": "ประจวบคีรีขันธ์"
+      },
+      {
+        "code": "plot_032",
+        "label": "3. บางสะพาน",
+        "provinceRaw": "ประจวบคีรีขันธ์"
+      },
+      {
+        "code": "plot_033",
+        "label": "คลองบางปู 200469",
+        "provinceRaw": "ปัตตานี"
+      },
+      {
+        "code": "plot_034",
+        "label": "บางตาวา 210469",
+        "provinceRaw": "ปัตตานี"
+      },
+      {
+        "code": "plot_035",
+        "label": "แหลมโพธิ์ 210469",
+        "provinceRaw": "ปัตตานี"
+      },
+      {
+        "code": "plot_036",
+        "label": "1. พังราด",
+        "provinceRaw": "ระยอง"
+      },
+      {
+        "code": "plot_037",
+        "label": "2. ระยอง1",
+        "provinceRaw": "ระยอง"
+      },
+      {
+        "code": "plot_038",
+        "label": "3. ระยอง2",
+        "provinceRaw": "ระยอง"
+      },
+      {
+        "code": "plot_039",
+        "label": "ควนเนียง",
+        "provinceRaw": "สงขลา"
+      },
+      {
+        "code": "plot_040",
+        "label": "ชะแล้",
+        "provinceRaw": "สงขลา"
+      },
+      {
+        "code": "plot_041",
+        "label": "เมือง",
+        "provinceRaw": "สงขลา"
+      },
+      {
+        "code": "plot_042",
+        "label": "กาญจนดิษฐ์",
+        "provinceRaw": "สุราษฯ"
+      },
+      {
+        "code": "plot_043",
+        "label": "ดอนสัก",
+        "provinceRaw": "สุราษฯ"
+      },
+      {
+        "code": "plot_044",
+        "label": "เมือง",
+        "provinceRaw": "สุราษฯ"
+      }
+    ],
+    "subplot": [
+      {
+        "code": "subplot_001",
+        "label": "Center (C)",
+        "plotId": "plot_001"
+      },
+      {
+        "code": "subplot_002",
+        "label": "South East (SE)",
+        "plotId": "plot_001"
+      },
+      {
+        "code": "subplot_003",
+        "label": "North (N)",
+        "plotId": "plot_001"
+      },
+      {
+        "code": "subplot_004",
+        "label": "South West (SW)",
+        "plotId": "plot_001"
+      },
+      {
+        "code": "subplot_005",
+        "label": "Center (C)",
+        "plotId": "plot_002"
+      },
+      {
+        "code": "subplot_006",
+        "label": "South East (SE)",
+        "plotId": "plot_002"
+      },
+      {
+        "code": "subplot_007",
+        "label": "Center (C)",
+        "plotId": "plot_003"
+      },
+      {
+        "code": "subplot_008",
+        "label": "South East (SE)",
+        "plotId": "plot_003"
+      },
+      {
+        "code": "subplot_009",
+        "label": "North (N)",
+        "plotId": "plot_003"
+      },
+      {
+        "code": "subplot_010",
+        "label": "South West (SW)",
+        "plotId": "plot_003"
+      },
+      {
+        "code": "subplot_011",
+        "label": "Center (C)",
+        "plotId": "plot_004"
+      },
+      {
+        "code": "subplot_012",
+        "label": "South East (SE)",
+        "plotId": "plot_004"
+      },
+      {
+        "code": "subplot_013",
+        "label": "North (N)",
+        "plotId": "plot_004"
+      },
+      {
+        "code": "subplot_014",
+        "label": "South West (SW)",
+        "plotId": "plot_004"
+      },
+      {
+        "code": "subplot_015",
+        "label": "Center (C)",
+        "plotId": "plot_005"
+      },
+      {
+        "code": "subplot_016",
+        "label": "South East (SE)",
+        "plotId": "plot_005"
+      },
+      {
+        "code": "subplot_017",
+        "label": "North (N)",
+        "plotId": "plot_005"
+      },
+      {
+        "code": "subplot_018",
+        "label": "South West (SW)",
+        "plotId": "plot_005"
+      },
+      {
+        "code": "subplot_019",
+        "label": "Center (C)",
+        "plotId": "plot_006"
+      },
+      {
+        "code": "subplot_020",
+        "label": "South East (SE)",
+        "plotId": "plot_006"
+      },
+      {
+        "code": "subplot_021",
+        "label": "North (N)",
+        "plotId": "plot_006"
+      },
+      {
+        "code": "subplot_022",
+        "label": "South West (SW)",
+        "plotId": "plot_006"
+      },
+      {
+        "code": "subplot_023",
+        "label": "Center (C)",
+        "plotId": "plot_007"
+      },
+      {
+        "code": "subplot_024",
+        "label": "South East (SE)",
+        "plotId": "plot_007"
+      },
+      {
+        "code": "subplot_025",
+        "label": "North (N)",
+        "plotId": "plot_007"
+      },
+      {
+        "code": "subplot_026",
+        "label": "South West (SW)",
+        "plotId": "plot_007"
+      },
+      {
+        "code": "subplot_027",
+        "label": "Center (C)",
+        "plotId": "plot_008"
+      },
+      {
+        "code": "subplot_028",
+        "label": "South East (SE)",
+        "plotId": "plot_008"
+      },
+      {
+        "code": "subplot_029",
+        "label": "North (N)",
+        "plotId": "plot_008"
+      },
+      {
+        "code": "subplot_030",
+        "label": "South West (SW)",
+        "plotId": "plot_008"
+      },
+      {
+        "code": "subplot_031",
+        "label": "North (N)",
+        "plotId": "plot_009"
+      },
+      {
+        "code": "subplot_032",
+        "label": "Center (C)",
+        "plotId": "plot_009"
+      },
+      {
+        "code": "subplot_033",
+        "label": "South East (SE)",
+        "plotId": "plot_009"
+      },
+      {
+        "code": "subplot_034",
+        "label": "South West (SW)",
+        "plotId": "plot_009"
+      },
+      {
+        "code": "subplot_035",
+        "label": "Center (C)",
+        "plotId": "plot_010"
+      },
+      {
+        "code": "subplot_036",
+        "label": "South East (SE)",
+        "plotId": "plot_010"
+      },
+      {
+        "code": "subplot_037",
+        "label": "North (N)",
+        "plotId": "plot_010"
+      },
+      {
+        "code": "subplot_038",
+        "label": "South West (SW)",
+        "plotId": "plot_010"
+      },
+      {
+        "code": "subplot_039",
+        "label": "Center (C)",
+        "plotId": "plot_011"
+      },
+      {
+        "code": "subplot_040",
+        "label": "South East (SE)",
+        "plotId": "plot_011"
+      },
+      {
+        "code": "subplot_041",
+        "label": "North (N)",
+        "plotId": "plot_011"
+      },
+      {
+        "code": "subplot_042",
+        "label": "South West (SW)",
+        "plotId": "plot_011"
+      },
+      {
+        "code": "subplot_043",
+        "label": "Center (C)",
+        "plotId": "plot_012"
+      },
+      {
+        "code": "subplot_044",
+        "label": "South East (SE)",
+        "plotId": "plot_012"
+      },
+      {
+        "code": "subplot_045",
+        "label": "North (N)",
+        "plotId": "plot_012"
+      },
+      {
+        "code": "subplot_046",
+        "label": "South West (SW)",
+        "plotId": "plot_012"
+      },
+      {
+        "code": "subplot_047",
+        "label": "Center (C)",
+        "plotId": "plot_013"
+      },
+      {
+        "code": "subplot_048",
+        "label": "North (N)",
+        "plotId": "plot_013"
+      },
+      {
+        "code": "subplot_049",
+        "label": "South East (SE)",
+        "plotId": "plot_013"
+      },
+      {
+        "code": "subplot_050",
+        "label": "South West (SW)",
+        "plotId": "plot_013"
+      },
+      {
+        "code": "subplot_051",
+        "label": "Center (C)",
+        "plotId": "plot_014"
+      },
+      {
+        "code": "subplot_052",
+        "label": "North (N)",
+        "plotId": "plot_014"
+      },
+      {
+        "code": "subplot_053",
+        "label": "South East (SE)",
+        "plotId": "plot_014"
+      },
+      {
+        "code": "subplot_054",
+        "label": "South West (SW)",
+        "plotId": "plot_014"
+      },
+      {
+        "code": "subplot_055",
+        "label": "Center (C)",
+        "plotId": "plot_015"
+      },
+      {
+        "code": "subplot_056",
+        "label": "North (N)",
+        "plotId": "plot_015"
+      },
+      {
+        "code": "subplot_057",
+        "label": "South East (SE)",
+        "plotId": "plot_015"
+      },
+      {
+        "code": "subplot_058",
+        "label": "South West (SW)",
+        "plotId": "plot_015"
+      },
+      {
+        "code": "subplot_059",
+        "label": "Center (C)",
+        "plotId": "plot_016"
+      },
+      {
+        "code": "subplot_060",
+        "label": "South East (SE)",
+        "plotId": "plot_016"
+      },
+      {
+        "code": "subplot_061",
+        "label": "North (N)",
+        "plotId": "plot_016"
+      },
+      {
+        "code": "subplot_062",
+        "label": "South West (SW)",
+        "plotId": "plot_016"
+      },
+      {
+        "code": "subplot_063",
+        "label": "Center (C)",
+        "plotId": "plot_017"
+      },
+      {
+        "code": "subplot_064",
+        "label": "South East (SE)",
+        "plotId": "plot_017"
+      },
+      {
+        "code": "subplot_065",
+        "label": "North (N)",
+        "plotId": "plot_017"
+      },
+      {
+        "code": "subplot_066",
+        "label": "South West (SW)",
+        "plotId": "plot_017"
+      },
+      {
+        "code": "subplot_067",
+        "label": "Center (C)",
+        "plotId": "plot_018"
+      },
+      {
+        "code": "subplot_068",
+        "label": "South East (SE)",
+        "plotId": "plot_018"
+      },
+      {
+        "code": "subplot_069",
+        "label": "North (N)",
+        "plotId": "plot_018"
+      },
+      {
+        "code": "subplot_070",
+        "label": "South West (SW)",
+        "plotId": "plot_018"
+      },
+      {
+        "code": "subplot_071",
+        "label": "Center (C)",
+        "plotId": "plot_019"
+      },
+      {
+        "code": "subplot_072",
+        "label": "South East (SE)",
+        "plotId": "plot_019"
+      },
+      {
+        "code": "subplot_073",
+        "label": "North (N)",
+        "plotId": "plot_019"
+      },
+      {
+        "code": "subplot_074",
+        "label": "South West (SW)",
+        "plotId": "plot_019"
+      },
+      {
+        "code": "subplot_075",
+        "label": "Center (C)",
+        "plotId": "plot_020"
+      },
+      {
+        "code": "subplot_076",
+        "label": "South East (SE)",
+        "plotId": "plot_020"
+      },
+      {
+        "code": "subplot_077",
+        "label": "North (N)",
+        "plotId": "plot_020"
+      },
+      {
+        "code": "subplot_078",
+        "label": "Center (C)",
+        "plotId": "plot_021"
+      },
+      {
+        "code": "subplot_079",
+        "label": "South East (SE)",
+        "plotId": "plot_021"
+      },
+      {
+        "code": "subplot_080",
+        "label": "Center (C)",
+        "plotId": "plot_022"
+      },
+      {
+        "code": "subplot_081",
+        "label": "South East (SE)",
+        "plotId": "plot_022"
+      },
+      {
+        "code": "subplot_082",
+        "label": "North (N)",
+        "plotId": "plot_022"
+      },
+      {
+        "code": "subplot_083",
+        "label": "South West (SW)",
+        "plotId": "plot_022"
+      },
+      {
+        "code": "subplot_084",
+        "label": "South West (SW)",
+        "plotId": "plot_023"
+      },
+      {
+        "code": "subplot_085",
+        "label": "Center (C)",
+        "plotId": "plot_023"
+      },
+      {
+        "code": "subplot_086",
+        "label": "South East (SE)",
+        "plotId": "plot_023"
+      },
+      {
+        "code": "subplot_087",
+        "label": "North (N)",
+        "plotId": "plot_023"
+      },
+      {
+        "code": "subplot_088",
+        "label": "Center (C)",
+        "plotId": "plot_024"
+      },
+      {
+        "code": "subplot_089",
+        "label": "North (N)",
+        "plotId": "plot_024"
+      },
+      {
+        "code": "subplot_090",
+        "label": "South East (SE)",
+        "plotId": "plot_024"
+      },
+      {
+        "code": "subplot_091",
+        "label": "South West (SW)",
+        "plotId": "plot_024"
+      },
+      {
+        "code": "subplot_092",
+        "label": "Center (C)",
+        "plotId": "plot_025"
+      },
+      {
+        "code": "subplot_093",
+        "label": "North (N)",
+        "plotId": "plot_025"
+      },
+      {
+        "code": "subplot_094",
+        "label": "South East (SE)",
+        "plotId": "plot_025"
+      },
+      {
+        "code": "subplot_095",
+        "label": "South West (SW)",
+        "plotId": "plot_025"
+      },
+      {
+        "code": "subplot_096",
+        "label": "Center (C)",
+        "plotId": "plot_026"
+      },
+      {
+        "code": "subplot_097",
+        "label": "North (N)",
+        "plotId": "plot_026"
+      },
+      {
+        "code": "subplot_098",
+        "label": "South East (SE)",
+        "plotId": "plot_026"
+      },
+      {
+        "code": "subplot_099",
+        "label": "South West (SW)",
+        "plotId": "plot_026"
+      },
+      {
+        "code": "subplot_100",
+        "label": "Center (C)",
+        "plotId": "plot_027"
+      },
+      {
+        "code": "subplot_101",
+        "label": "North (N)",
+        "plotId": "plot_027"
+      },
+      {
+        "code": "subplot_102",
+        "label": "South East (SE)",
+        "plotId": "plot_027"
+      },
+      {
+        "code": "subplot_103",
+        "label": "South West (SW)",
+        "plotId": "plot_027"
+      },
+      {
+        "code": "subplot_104",
+        "label": "Center (C)",
+        "plotId": "plot_028"
+      },
+      {
+        "code": "subplot_105",
+        "label": "North (N)",
+        "plotId": "plot_028"
+      },
+      {
+        "code": "subplot_106",
+        "label": "South East (SE)",
+        "plotId": "plot_028"
+      },
+      {
+        "code": "subplot_107",
+        "label": "South West (SW)",
+        "plotId": "plot_028"
+      },
+      {
+        "code": "subplot_108",
+        "label": "Center (C)",
+        "plotId": "plot_029"
+      },
+      {
+        "code": "subplot_109",
+        "label": "North (N)",
+        "plotId": "plot_029"
+      },
+      {
+        "code": "subplot_110",
+        "label": "South East (SE)",
+        "plotId": "plot_029"
+      },
+      {
+        "code": "subplot_111",
+        "label": "South West (SW)",
+        "plotId": "plot_029"
+      },
+      {
+        "code": "subplot_112",
+        "label": "Center (C)",
+        "plotId": "plot_030"
+      },
+      {
+        "code": "subplot_113",
+        "label": "South East (SE)",
+        "plotId": "plot_030"
+      },
+      {
+        "code": "subplot_114",
+        "label": "North (N)",
+        "plotId": "plot_030"
+      },
+      {
+        "code": "subplot_115",
+        "label": "South West (SW)",
+        "plotId": "plot_030"
+      },
+      {
+        "code": "subplot_116",
+        "label": "South East (SE)",
+        "plotId": "plot_031"
+      },
+      {
+        "code": "subplot_117",
+        "label": "North (N)",
+        "plotId": "plot_031"
+      },
+      {
+        "code": "subplot_118",
+        "label": "South West (SW)",
+        "plotId": "plot_031"
+      },
+      {
+        "code": "subplot_119",
+        "label": "Center (C)",
+        "plotId": "plot_031"
+      },
+      {
+        "code": "subplot_120",
+        "label": "Center (C)",
+        "plotId": "plot_032"
+      },
+      {
+        "code": "subplot_121",
+        "label": "South East (SE)",
+        "plotId": "plot_032"
+      },
+      {
+        "code": "subplot_122",
+        "label": "North (N)",
+        "plotId": "plot_032"
+      },
+      {
+        "code": "subplot_123",
+        "label": "South West (SW)",
+        "plotId": "plot_032"
+      },
+      {
+        "code": "subplot_124",
+        "label": "Center (C)",
+        "plotId": "plot_033"
+      },
+      {
+        "code": "subplot_125",
+        "label": "North (N)",
+        "plotId": "plot_033"
+      },
+      {
+        "code": "subplot_126",
+        "label": "South East (SE)",
+        "plotId": "plot_033"
+      },
+      {
+        "code": "subplot_127",
+        "label": "South West (SW)",
+        "plotId": "plot_033"
+      },
+      {
+        "code": "subplot_128",
+        "label": "Center (C)",
+        "plotId": "plot_034"
+      },
+      {
+        "code": "subplot_129",
+        "label": "North (N)",
+        "plotId": "plot_034"
+      },
+      {
+        "code": "subplot_130",
+        "label": "South East (SE)",
+        "plotId": "plot_034"
+      },
+      {
+        "code": "subplot_131",
+        "label": "South West (SW)",
+        "plotId": "plot_034"
+      },
+      {
+        "code": "subplot_132",
+        "label": "Center (C)",
+        "plotId": "plot_035"
+      },
+      {
+        "code": "subplot_133",
+        "label": "North (N)",
+        "plotId": "plot_035"
+      },
+      {
+        "code": "subplot_134",
+        "label": "South East (SE)",
+        "plotId": "plot_035"
+      },
+      {
+        "code": "subplot_135",
+        "label": "South West (SW)",
+        "plotId": "plot_035"
+      },
+      {
+        "code": "subplot_136",
+        "label": "South West (SW)",
+        "plotId": "plot_036"
+      },
+      {
+        "code": "subplot_137",
+        "label": "Center (C)",
+        "plotId": "plot_036"
+      },
+      {
+        "code": "subplot_138",
+        "label": "South East (SE)",
+        "plotId": "plot_036"
+      },
+      {
+        "code": "subplot_139",
+        "label": "North (N)",
+        "plotId": "plot_036"
+      },
+      {
+        "code": "subplot_140",
+        "label": "Center (C)",
+        "plotId": "plot_037"
+      },
+      {
+        "code": "subplot_141",
+        "label": "South East (SE)",
+        "plotId": "plot_037"
+      },
+      {
+        "code": "subplot_142",
+        "label": "North (N)",
+        "plotId": "plot_037"
+      },
+      {
+        "code": "subplot_143",
+        "label": "South West (SW)",
+        "plotId": "plot_037"
+      },
+      {
+        "code": "subplot_144",
+        "label": "Center (C)",
+        "plotId": "plot_038"
+      },
+      {
+        "code": "subplot_145",
+        "label": "South East (SE)",
+        "plotId": "plot_038"
+      },
+      {
+        "code": "subplot_146",
+        "label": "North (N)",
+        "plotId": "plot_038"
+      },
+      {
+        "code": "subplot_147",
+        "label": "South West (SW)",
+        "plotId": "plot_038"
+      },
+      {
+        "code": "subplot_148",
+        "label": "Center (C)",
+        "plotId": "plot_039"
+      },
+      {
+        "code": "subplot_149",
+        "label": "North (N)",
+        "plotId": "plot_039"
+      },
+      {
+        "code": "subplot_150",
+        "label": "South East (SE)",
+        "plotId": "plot_039"
+      },
+      {
+        "code": "subplot_151",
+        "label": "South West (SW)",
+        "plotId": "plot_039"
+      },
+      {
+        "code": "subplot_152",
+        "label": "Center (C)",
+        "plotId": "plot_040"
+      },
+      {
+        "code": "subplot_153",
+        "label": "North (N)",
+        "plotId": "plot_040"
+      },
+      {
+        "code": "subplot_154",
+        "label": "South East (SE)",
+        "plotId": "plot_040"
+      },
+      {
+        "code": "subplot_155",
+        "label": "South West (SW)",
+        "plotId": "plot_040"
+      },
+      {
+        "code": "subplot_156",
+        "label": "Center (C)",
+        "plotId": "plot_041"
+      },
+      {
+        "code": "subplot_157",
+        "label": "North (N)",
+        "plotId": "plot_041"
+      },
+      {
+        "code": "subplot_158",
+        "label": "South East (SE)",
+        "plotId": "plot_041"
+      },
+      {
+        "code": "subplot_159",
+        "label": "South West (SW)",
+        "plotId": "plot_041"
+      },
+      {
+        "code": "subplot_160",
+        "label": "Center (C)",
+        "plotId": "plot_042"
+      },
+      {
+        "code": "subplot_161",
+        "label": "North (N)",
+        "plotId": "plot_042"
+      },
+      {
+        "code": "subplot_162",
+        "label": "South East (SE)",
+        "plotId": "plot_042"
+      },
+      {
+        "code": "subplot_163",
+        "label": "South West (SW)",
+        "plotId": "plot_042"
+      },
+      {
+        "code": "subplot_164",
+        "label": "Center (C)",
+        "plotId": "plot_043"
+      },
+      {
+        "code": "subplot_165",
+        "label": "North (N)",
+        "plotId": "plot_043"
+      },
+      {
+        "code": "subplot_166",
+        "label": "South East (SE)",
+        "plotId": "plot_043"
+      },
+      {
+        "code": "subplot_167",
+        "label": "South West (SW)",
+        "plotId": "plot_043"
+      },
+      {
+        "code": "subplot_168",
+        "label": "Center (C)",
+        "plotId": "plot_044"
+      },
+      {
+        "code": "subplot_169",
+        "label": "North (N)",
+        "plotId": "plot_044"
+      },
+      {
+        "code": "subplot_170",
+        "label": "South East (SE)",
+        "plotId": "plot_044"
+      },
+      {
+        "code": "subplot_171",
+        "label": "South West (SW)",
+        "plotId": "plot_044"
+      }
+    ]
+  }
+}

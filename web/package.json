@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed:admin": "tsx scripts/seed-admin.ts",
-    "build:dictionary": "tsx scripts/build-field-dictionary.ts"
+    "build:dictionary": "tsx scripts/build-field-dictionary.ts",
+    "build:area-codes": "tsx scripts/build-area-codes.ts"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^7.9.1",

@@ -6,7 +6,8 @@ import type { DashboardStats, PlotLocation, QueryResult } from '@/types'
 // JSON path) or Application Default Credentials when running on GCP.
 
 import { getGcpCredentials } from './gcp-credentials'
-import { WOOD_DENSITY, densityLookupArrays } from './wood-density'
+import { WOOD_MATRIC, metricLookupArrays } from './wood-matric'
+import { provinceCoords } from './thai-provinces'
 
 const bq = new BigQuery({
   projectId: process.env.GCP_PROJECT_ID,
@@ -58,7 +59,7 @@ export async function getObservationSchema(): Promise<ColumnMeta[]> {
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const { keys, values } = densityLookupArrays()
+  const { keys, densities } = metricLookupArrays()
   const query = `
     WITH density AS (
       SELECT k AS species, v AS density
@@ -97,8 +98,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     query,
     params: {
       densKeys: keys,
-      densValues: values,
-      defaultDensity: WOOD_DENSITY.defaultDensity,
+      densValues: densities,
+      defaultDensity: WOOD_MATRIC.defaultDensity,
     },
   })
   const r = (rows[0] ?? {}) as Record<string, unknown>
@@ -196,6 +197,152 @@ export async function getIucnStatusCounts(): Promise<{ code: string; count: numb
     code: r.code,
     count: Number(r.count),
   }))
+}
+
+// ─── Focus Area Statistics (maps page) ────────────────────────────────────────
+
+export type FocusAreaLevel = 'province' | 'plot' | 'subplot'
+
+/** One tree stem placed on the focus-area map. lat/lng are null without GPS. */
+export interface FocusAreaStem {
+  /** Unique per row (map_record_id) — a tree_id may span several stems. */
+  id: string
+  treeId: string
+  lat: number | null
+  lng: number | null
+  gbhCm: number | null
+  heightM: number | null
+  iucnCode: string
+  scientificName: string
+  thaiName: string
+  liveDead: string
+  plotId: string
+  subplotId: string
+}
+
+export interface FocusAreaResult {
+  level: FocusAreaLevel
+  code: string
+  stems: FocusAreaStem[]
+  total: number
+  withGps: number
+  withoutGps: number
+  /** Count of stems per IUCN code (non-empty codes only). */
+  iucnCounts: { code: string; count: number }[]
+}
+
+const FOCUS_STEM_LIMIT = 5000
+
+/**
+ * Tree stems inside one selected focus area, for the Maps page map.
+ *   province → all raw project_no_raw values that canonicalise to `code`
+ *   plot     → plot_id = code
+ *   subplot  → subplot_id = code
+ */
+export async function getFocusAreaStems(
+  level: FocusAreaLevel,
+  code: string,
+): Promise<FocusAreaResult> {
+  const params: Record<string, unknown> = { limit: FOCUS_STEM_LIMIT }
+  let areaWhere: string
+
+  if (level === 'plot') {
+    areaWhere = 'plot_id = @code'
+    params.code = code
+  } else if (level === 'subplot') {
+    areaWhere = 'subplot_id = @code'
+    params.code = code
+  } else {
+    // Province: the picker uses the canonical name, but project_no_raw holds
+    // abbreviated/misspelled variants (e.g. "สุราษฯ"). Resolve the distinct raw
+    // values that map to this canonical province, then match on that set.
+    const [rawRows] = await bq.query({
+      query: `SELECT DISTINCT project_no_raw FROM \`${OBSERVATIONS_FQN}\` WHERE NULLIF(project_no_raw, '') IS NOT NULL`,
+    })
+    const rawValues = (rawRows as { project_no_raw: string }[])
+      .map(r => r.project_no_raw)
+      .filter(raw => (provinceCoords(raw)?.name ?? raw.trim()) === code)
+    if (rawValues.length === 0) {
+      return { level, code, stems: [], total: 0, withGps: 0, withoutGps: 0, iucnCounts: [] }
+    }
+    areaWhere = 'project_no_raw IN UNNEST(@rawValues)'
+    params.rawValues = rawValues
+  }
+
+  const [rows] = await bq.query({
+    query: `
+      SELECT
+        map_record_id AS id,
+        tree_id AS treeId,
+        IF(valid, lat, NULL) AS lat,
+        IF(valid, lng, NULL) AS lng,
+        SAFE_CAST(gbh_cm AS FLOAT64) AS gbhCm,
+        SAFE_CAST(total_height_m AS FLOAT64) AS heightM,
+        COALESCE(NULLIF(iucn_code, ''), '') AS iucnCode,
+        COALESCE(NULLIF(scientific_name, ''), '') AS scientificName,
+        COALESCE(NULLIF(thai_name, ''), '') AS thaiName,
+        COALESCE(NULLIF(live_dead_code, ''), '') AS liveDead,
+        COALESCE(NULLIF(plot_id, ''), '') AS plotId,
+        COALESCE(NULLIF(subplot_id, ''), '') AS subplotId
+      FROM (
+        SELECT
+          map_record_id, tree_id, gbh_cm, total_height_m, iucn_code,
+          scientific_name, thai_name, live_dead_code, plot_id, subplot_id,
+          lat, lng,
+          (lat IS NOT NULL AND lng IS NOT NULL
+            AND lat BETWEEN -90 AND 90
+            AND lng BETWEEN -180 AND 180
+            AND NOT (lat = 0 AND lng = 0)) AS valid
+        FROM (
+          SELECT
+            map_record_id, tree_id, gbh_cm, total_height_m, iucn_code,
+            scientific_name, thai_name, live_dead_code, project_no_raw,
+            plot_id, subplot_id,
+            SAFE_CAST(latitude AS FLOAT64) AS lat,
+            SAFE_CAST(longitude AS FLOAT64) AS lng
+          FROM \`${OBSERVATIONS_FQN}\`
+          WHERE observation_type = 'tree_stem' AND (${areaWhere})
+        )
+      )
+      LIMIT @limit
+    `,
+    params,
+  })
+
+  const stems: FocusAreaStem[] = (rows as Record<string, unknown>[]).map(r => ({
+    id: String(r.id ?? ''),
+    treeId: String(r.treeId ?? ''),
+    lat: r.lat == null ? null : Number(r.lat),
+    lng: r.lng == null ? null : Number(r.lng),
+    gbhCm: r.gbhCm == null ? null : Number(r.gbhCm),
+    heightM: r.heightM == null ? null : Number(r.heightM),
+    iucnCode: String(r.iucnCode ?? ''),
+    scientificName: String(r.scientificName ?? ''),
+    thaiName: String(r.thaiName ?? ''),
+    liveDead: String(r.liveDead ?? ''),
+    plotId: String(r.plotId ?? ''),
+    subplotId: String(r.subplotId ?? ''),
+  }))
+
+  const withGps = stems.filter(s => s.lat != null && s.lng != null).length
+  const iucnMap = new Map<string, number>()
+  for (const s of stems) {
+    if (!s.iucnCode) continue
+    iucnMap.set(s.iucnCode, (iucnMap.get(s.iucnCode) ?? 0) + 1)
+  }
+  const iucnCounts = Array.from(iucnMap.entries())
+    .map(([c, n]) => ({ code: c, count: n }))
+    .sort((a, b) => b.count - a.count)
+
+  return {
+    level,
+    code,
+    stems,
+    total: stems.length,
+    withGps,
+    withoutGps: stems.length - withGps,
+    iucnCounts,
+  }
 }
 
 // ─── Row browsing (data page / export) ────────────────────────────────────────
@@ -653,7 +800,7 @@ export async function getObservationInsights(opts: {
 
 // ─── Biomass (query-scoped allometric estimation) ─────────────────────────────
 
-/** One group's summed + averaged biomass for each of the three equations (kg). */
+/** One group's summed + averaged biomass for each of the three equations (kg) and wood volume (m³). */
 export interface BiomassGroup {
   label: string
   trees: number
@@ -663,21 +810,27 @@ export interface BiomassGroup {
   komiTotalAvg: number
   chaveSum: number
   chaveAvg: number
+  woodVolumeSum: number
+  woodVolumeAvg: number
 }
 
 export interface BiomassResult {
   /** Tree-stem rows with a usable girth in the current query. */
   trees: number
-  /** Wood-density defaults / provenance echoed back for the formula panel. */
+  /** Wood-density/metric defaults / provenance echoed back for the formula panel. */
   defaultDensity: number
   densityVersion: string
   densityReviewed: boolean
+  defaultFormFactor: number
+  formFactorVersion: string
+  formFactorReviewed: boolean
   /** Share (0–1) of stems whose species matched a density-table entry. */
   densityMatchedFrac: number
-  /** Grand totals across ALL matched stems (kg), for the summary tiles. */
+  /** Grand totals across ALL matched stems (kg or m³ for volume), for the summary tiles. */
   grandKomiAgb: number
   grandKomiTotal: number
   grandChave: number
+  grandWoodVolume: number
   bySpecies: BiomassGroup[]
   byProject: BiomassGroup[]
   byPlot: BiomassGroup[]
@@ -720,9 +873,13 @@ export async function getObservationBiomass(opts: {
 
   const [rows] = await bq.query({ query, params })
 
+  const { keys, densities, formFactors } = metricLookupArrays()
+
   const densityMap = new Map<string, number>()
-  for (const s of WOOD_DENSITY.species) {
+  const formFactorMap = new Map<string, number>()
+  for (const s of WOOD_MATRIC.species) {
     densityMap.set(s.scientific_name.toLowerCase(), s.density)
+    formFactorMap.set(s.scientific_name.toLowerCase(), s.form_factor)
   }
 
   interface Accumulator {
@@ -731,6 +888,7 @@ export async function getObservationBiomass(opts: {
     komiAgbSum: number
     komiTotalSum: number
     chaveSum: number
+    woodVolumeSum: number
     hCount: number
   }
 
@@ -743,6 +901,7 @@ export async function getObservationBiomass(opts: {
   let grandKomiAgb = 0
   let grandKomiTotal = 0
   let grandChave = 0
+  let grandWoodVolume = 0
   let grandChaveCount = 0
 
   for (const row of rows as any[]) {
@@ -755,17 +914,26 @@ export async function getObservationBiomass(opts: {
     
     const densityVal = densityMap.get(speciesKey)
     const isMatched = densityVal !== undefined
-    const rho = isMatched ? densityVal : WOOD_DENSITY.defaultDensity
+    const rho = isMatched ? densityVal : WOOD_MATRIC.defaultDensity
+
+    const formFactorVal = formFactorMap.get(speciesKey)
+    const f = formFactorVal !== undefined ? formFactorVal : WOOD_MATRIC.defaultFormFactor
 
     const komiAgb = 0.251 * rho * Math.pow(dbh, 2.46)
     const komiTotal = komiAgb + 0.199 * Math.pow(rho, 0.899) * Math.pow(dbh, 2.22)
     const hasHeight = h !== null && h > 0
     const chave = hasHeight ? 0.0673 * Math.pow(rho * dbh * dbh * h, 0.976) : 0
 
+    // Volume in m³ = f * g * h = f * (pi * (dbh_cm/100)^2 / 4) * h
+    const dbhM = dbh / 100
+    const g = (Math.PI * dbhM * dbhM) / 4
+    const woodVolume = hasHeight ? f * g * h : 0
+
     grandTrees++
     if (isMatched) matchedCount++
     grandKomiAgb += komiAgb
     grandKomiTotal += komiTotal
+    grandWoodVolume += woodVolume
     if (hasHeight) {
       grandChave += chave
       grandChaveCount++
@@ -778,12 +946,13 @@ export async function getObservationBiomass(opts: {
     const addToMap = (map: Map<string, Accumulator>, key: string, label: string) => {
       let accum = map.get(key)
       if (!accum) {
-        accum = { label, trees: 0, komiAgbSum: 0, komiTotalSum: 0, chaveSum: 0, hCount: 0 }
+        accum = { label, trees: 0, komiAgbSum: 0, komiTotalSum: 0, chaveSum: 0, woodVolumeSum: 0, hCount: 0 }
         map.set(key, accum)
       }
       accum.trees++
       accum.komiAgbSum += komiAgb
       accum.komiTotalSum += komiTotal
+      accum.woodVolumeSum += woodVolume
       if (hasHeight) {
         accum.chaveSum += chave
         accum.hCount++
@@ -808,18 +977,24 @@ export async function getObservationBiomass(opts: {
         komiTotalAvg: item.trees > 0 ? item.komiTotalSum / item.trees : 0,
         chaveSum: item.chaveSum,
         chaveAvg: item.hCount > 0 ? item.chaveSum / item.hCount : 0,
+        woodVolumeSum: item.woodVolumeSum,
+        woodVolumeAvg: item.trees > 0 ? item.woodVolumeSum / item.trees : 0,
       }))
   }
 
   return {
     trees: grandTrees,
-    defaultDensity: WOOD_DENSITY.defaultDensity,
-    densityVersion: WOOD_DENSITY.version,
-    densityReviewed: WOOD_DENSITY.reviewed,
+    defaultDensity: WOOD_MATRIC.defaultDensity,
+    densityVersion: WOOD_MATRIC.version,
+    densityReviewed: WOOD_MATRIC.reviewed,
+    defaultFormFactor: WOOD_MATRIC.defaultFormFactor,
+    formFactorVersion: WOOD_MATRIC.version,
+    formFactorReviewed: WOOD_MATRIC.reviewed,
     densityMatchedFrac: grandTrees > 0 ? matchedCount / grandTrees : 0,
     grandKomiAgb,
     grandKomiTotal,
     grandChave,
+    grandWoodVolume,
     bySpecies: mapToBiomassGroup(speciesMap),
     byProject: mapToBiomassGroup(projectMap),
     byPlot: mapToBiomassGroup(plotMap),

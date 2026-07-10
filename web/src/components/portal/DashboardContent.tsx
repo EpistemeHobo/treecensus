@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 
 const LeafletMapCanvas = dynamic(
-  () => import('./LeafletMapCanvas'),
+  () => import('./LeafletMapCanvas').catch(err => {
+    console.error('Failed to load LeafletMapCanvas chunk, reloading page...', err)
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+    return { default: () => null }
+  }),
   {
     ssr: false,
     loading: () => (
@@ -20,6 +26,7 @@ const LeafletMapCanvas = dynamic(
 import { TopBar } from '@/components/layout/TopBar'
 import { StatCard } from '@/components/portal/StatCard'
 import { MangroveCard } from '@/components/ui/MangroveCard'
+import { TransparentCard } from '@/components/ui/TransparentCard'
 import { Badge } from '@/components/ui/Badge'
 import { TreePine, MapPin, Leaf, Scale, Maximize, Minimize, FileCheck } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
@@ -299,9 +306,7 @@ function FireflyMapCard({ plots }: { plots: PlotLocation[] }) {
 
   return (
     <FullscreenWrap active={fullscreen}>
-      <MangroveCard
-        variant="tintLen1"
-        theme="dark"
+      <TransparentCard
         className={fullscreen ? 'min-h-full' : ''}
       >
         <div className="flex items-center justify-between mb-5">
@@ -355,7 +360,7 @@ function FireflyMapCard({ plots }: { plots: PlotLocation[] }) {
             </div>
           </>
         )}
-      </MangroveCard>
+      </TransparentCard>
     </FullscreenWrap>
   )
 }
@@ -390,9 +395,7 @@ function EstimatedMapCard({ plots }: { plots: PlotLocation[] }) {
 
   return (
     <FullscreenWrap active={fullscreen}>
-      <MangroveCard
-        variant="tintLen2"
-        theme="dark"
+      <TransparentCard
         className={fullscreen ? 'min-h-full' : ''}
       >
         <div className="flex items-center justify-between mb-5">
@@ -439,7 +442,7 @@ function EstimatedMapCard({ plots }: { plots: PlotLocation[] }) {
             </div>
           </>
         )}
-      </MangroveCard>
+      </TransparentCard>
     </FullscreenWrap>
   )
 }

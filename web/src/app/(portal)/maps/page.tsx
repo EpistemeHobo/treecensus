@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/Badge'
 import { MangroveCard } from '@/components/ui/MangroveCard'
 import { BarChart3, ExternalLink, Map } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
+import { FocusAreaStatistics } from '@/components/portal/FocusAreaStatistics'
 
 // Looker Studio embed (maps + statistics report).
 const LOOKER_EMBED = 'https://datastudio.google.com/embed/reporting/b2bc645b-119e-425e-9bc2-dc7147e83604/page/p_slwi2rm84d'
@@ -24,17 +25,13 @@ export default function MapsPage() {
         actions={<Badge variant="violet">Looker Studio</Badge>}
       />
 
-      <div className="flex-1 p-8 flex gap-6 overflow-auto items-start">
-        {/* Sidebar tabs */}
-        <nav className="w-64 shrink-0 sticky top-0 flex flex-col gap-0.5">
-          <p className="text-[11px] text-muted uppercase tracking-widest font-medium px-3 pb-2">
-            {isTh ? 'สถิติและข้อมูลเชิงพื้นที่' : 'Maps & Statistics'}
-          </p>
-
+      <div className="flex-1 p-8 flex flex-col gap-6 overflow-auto">
+        {/* Top tabs */}
+        <nav className="flex flex-row items-center gap-4 w-full border-b border-dim pb-3">
           <button
             onClick={() => setTab('focus')}
             className={
-              'flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[13px] font-medium text-left transition-all duration-150 border ' +
+              'flex items-center gap-2 px-4 py-2 rounded-sm text-[13px] font-medium transition-all duration-150 border ' +
               (tab === 'focus'
                 ? 'bg-coral/10 text-[#5E7D18] border-coral/10'
                 : 'text-muted hover:text-neutral hover:bg-ghost border-transparent')
@@ -47,7 +44,7 @@ export default function MapsPage() {
           <button
             onClick={() => setTab('looker')}
             className={
-              'flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[13px] font-medium text-left transition-all duration-150 border ' +
+              'flex items-center gap-2 px-4 py-2 rounded-sm text-[13px] font-medium transition-all duration-150 border ' +
               (tab === 'looker'
                 ? 'bg-coral/10 text-[#5E7D18] border-coral/10'
                 : 'text-muted hover:text-neutral hover:bg-ghost border-transparent')
@@ -61,9 +58,13 @@ export default function MapsPage() {
         {/* Content area */}
         <div className="flex-1 min-w-0 flex flex-col gap-6">
           {tab === 'focus' ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted text-[13px] border border-dim rounded-md bg-ghost">
-              <p>{isTh ? 'ข้อมูลสถิติพื้นที่มุ่งเน้น' : 'Focus Area Statistics'}</p>
-            </div>
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center py-20 text-muted">
+                Loading Focus Area...
+              </div>
+            }>
+              <FocusAreaStatistics />
+            </Suspense>
           ) : (
             <MangroveCard seed={73} className="!p-0 overflow-hidden shadow-sm">
               <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f4b36]/70">

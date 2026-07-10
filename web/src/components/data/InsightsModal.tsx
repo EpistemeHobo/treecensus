@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import { X, BarChart3, Leaf, Download } from 'lucide-react'
 import { useI18n } from '@/context/LanguageContext'
-import { WOOD_DENSITY } from '@/lib/wood-density'
+import { WOOD_MATRIC } from '@/lib/wood-matric'
 import { DICT_BY_NAME } from '@/lib/data-dictionary'
 import type { TranslationKey } from '@/i18n/translations'
 
@@ -88,23 +88,23 @@ function getQueryDescription(
   }
 }
 
-// Build and download the wood-density table as CSV: thai_name, scientific_name, ρ.
+// Build and download the wood-metric table as CSV: thai_name, scientific_name, ρ, form_factor.
 // A UTF-8 BOM is prepended so Excel renders the Thai names correctly.
-function downloadDensityCsv() {
+function downloadMetricCsv() {
   const esc = (v: string | number) => {
     const s = String(v)
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const header = ['thai_name', 'scientific_name', 'density_g_cm3']
+  const header = ['thai_name', 'scientific_name', 'density_g_cm3', 'form_factor_f']
   const lines = [
     header.join(','),
-    ...WOOD_DENSITY.species.map(s => [esc(s.thai_name), esc(s.scientific_name), s.density].join(',')),
+    ...WOOD_MATRIC.species.map(s => [esc(s.thai_name), esc(s.scientific_name), s.density, s.form_factor].join(',')),
   ]
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `wood-density-${WOOD_DENSITY.version}.csv`
+  a.download = `wood-matric-${WOOD_MATRIC.version}.csv`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -133,22 +133,27 @@ interface BiomassGroup {
   komiAgbSum: number; komiAgbAvg: number
   komiTotalSum: number; komiTotalAvg: number
   chaveSum: number; chaveAvg: number
+  woodVolumeSum: number; woodVolumeAvg: number
 }
 interface Biomass {
   trees: number
   defaultDensity: number
   densityVersion: string
   densityReviewed: boolean
+  defaultFormFactor: number
+  formFactorVersion: string
+  formFactorReviewed: boolean
   densityMatchedFrac: number
   grandKomiAgb: number
   grandKomiTotal: number
   grandChave: number
+  grandWoodVolume: number
   bySpecies: BiomassGroup[]
   byProject: BiomassGroup[]
   byPlot: BiomassGroup[]
 }
 
-type Equation = 'komiAgb' | 'komiTotal' | 'chave'
+type Equation = 'komiAgb' | 'komiTotal' | 'chave' | 'volume'
 
 interface Filter { field: string; op: string; value: string }
 
@@ -183,11 +188,14 @@ function ChartTooltip({ active, payload, label, unit }: {
   const { t } = useI18n()
   if (!active || !payload?.length) return null
   const v = Number(payload[0]?.value)
+  const isVolume = unit === 'm³'
   return (
     <div className="rounded-sm border border-[rgba(255,255,255,0.12)] bg-[#0A0A10] px-3 py-2 text-[12px] text-neutral shadow-xl">
       <div className="font-semibold">{label ?? payload[0]?.name}</div>
       <div className="text-coral">
-        {unit ? `${fmt(v)} ${unit}` : t('insights.tooltipRecords', { n: v.toLocaleString() })}
+        {unit
+          ? (isVolume ? `${fmt(v, 4)} m³ (${fmt(v * 1000000, 0)} cm³)` : `${fmt(v)} ${unit}`)
+          : t('insights.tooltipRecords', { n: v.toLocaleString() })}
       </div>
     </div>
   )
@@ -197,6 +205,7 @@ function Panel({ title, subtitle, stats, unit, children }: {
   title: string; subtitle?: string; stats?: { sum: number; avg: number }; unit?: string; children: React.ReactNode
 }) {
   const { t } = useI18n()
+  const isVolume = unit === 'm³'
   return (
     <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0d0d14] p-4">
       <div className="mb-3">
@@ -207,10 +216,14 @@ function Panel({ title, subtitle, stats, unit, children }: {
       {stats && (
         <div className="flex gap-4 mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)] text-[11px]">
           <span className="text-muted">
-            {t('insights.chartSum')}: <span className="text-neutral font-semibold tabular-nums">{fmt(stats.sum)}{unit ? ` ${unit}` : ''}</span>
+            {t('insights.chartSum')}: <span className="text-neutral font-semibold tabular-nums">
+              {isVolume ? `${fmt(stats.sum, 3)} m³` : `${fmt(stats.sum)}${unit ? ` ${unit}` : ''}`}
+            </span>
           </span>
           <span className="text-muted">
-            {t('insights.chartAvg')}: <span className="text-neutral font-semibold tabular-nums">{fmt(stats.avg)}{unit ? ` ${unit}` : ''}</span>
+            {t('insights.chartAvg')}: <span className="text-neutral font-semibold tabular-nums">
+              {isVolume ? `${fmt(stats.avg, 4)} m³ (${fmt(stats.avg * 1000000, 0)} cm³)` : `${fmt(stats.avg)}${unit ? ` ${unit}` : ''}`}
+            </span>
           </span>
         </div>
       )}
@@ -413,9 +426,11 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
   }, [open, tab, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo])
 
   // Pick the active equation's per-group sum, scaled by the carbon fraction.
-  const scale = carbon ? CARBON_FRACTION : 1
-  const groupValue = (g: BiomassGroup): number =>
-    (equation === 'komiAgb' ? g.komiAgbSum : equation === 'komiTotal' ? g.komiTotalSum : g.chaveSum) * scale
+  const scale = (equation !== 'volume' && carbon) ? CARBON_FRACTION : 1
+  const groupValue = (g: BiomassGroup): number => {
+    if (equation === 'volume') return g.woodVolumeSum
+    return (equation === 'komiAgb' ? g.komiAgbSum : equation === 'komiTotal' ? g.komiTotalSum : g.chaveSum) * scale
+  }
 
   const toCat = (groups: BiomassGroup[] | undefined): CategoryCount[] =>
     (groups ?? []).map(g => ({ label: g.label, count: groupValue(g) }))
@@ -425,10 +440,14 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
   const bmPlot = useMemo(() => toCat(biomass?.byPlot), [biomass, equation, carbon]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grandTotal = biomass
-    ? (equation === 'komiAgb' ? biomass.grandKomiAgb : equation === 'komiTotal' ? biomass.grandKomiTotal : biomass.grandChave) * scale
+    ? (equation === 'volume'
+        ? biomass.grandWoodVolume
+        : (equation === 'komiAgb' ? biomass.grandKomiAgb : equation === 'komiTotal' ? biomass.grandKomiTotal : biomass.grandChave) * scale)
     : 0
-  const metricWord = carbon ? t('biomass.metricCarbon') : t('biomass.metricBiomass')
-  const unit = t('biomass.unitKg')
+  const metricWord = equation === 'volume'
+    ? t('biomass.metricVolume')
+    : (carbon ? t('biomass.metricCarbon') : t('biomass.metricBiomass'))
+  const unit = equation === 'volume' ? t('biomass.unitM3') : t('biomass.unitKg')
 
   if (!open || typeof document === 'undefined') return null
 
@@ -589,8 +608,21 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
                   {/* Summary tiles */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <StatTile label={t('biomass.treeStems')} value={biomass.trees.toLocaleString()} />
-                    <StatTile label={t('biomass.totalBiomass', { metric: metricWord })} value={`${fmt(grandTotal)} ${unit}`} />
-                    <StatTile label={t('biomass.avgPerTree')} value={`${fmt(biomass.trees ? grandTotal / biomass.trees : 0)} ${unit}`} />
+                    <StatTile
+                      label={t('biomass.totalBiomass', { metric: metricWord })}
+                      value={equation === 'volume' ? `${fmt(grandTotal, 3)} m³` : `${fmt(grandTotal)} ${unit}`}
+                    />
+                    <StatTile
+                      label={t('biomass.avgPerTree')}
+                      value={
+                        equation === 'volume'
+                          ? (() => {
+                              const avg = biomass.trees ? grandTotal / biomass.trees : 0
+                              return `${fmt(avg, 4)} m³ (${fmt(avg * 1000000, 0)} cm³)`
+                            })()
+                          : `${fmt(biomass.trees ? grandTotal / biomass.trees : 0)} ${unit}`
+                      }
+                    />
                     <StatTile label={t('insights.distinctSpecies')} value={biomass.bySpecies.length.toLocaleString()} />
                   </div>
 
@@ -635,6 +667,7 @@ function FormulaPanel({ equation, setEquation, carbon, setCarbon, biomass }: {
     { key: 'komiAgb', label: t('biomass.eqKomiAgb'), formula: t('biomass.eqKomiAgbF') },
     { key: 'komiTotal', label: t('biomass.eqKomiTotal'), formula: t('biomass.eqKomiTotalF') },
     { key: 'chave', label: t('biomass.eqChave'), formula: t('biomass.eqChaveF') },
+    { key: 'volume', label: t('biomass.eqVolume'), formula: t('biomass.eqVolumeF') },
   ]
   const activeFormula = EQ_OPTIONS.find(e => e.key === equation)?.formula ?? ''
   const matchPct = Math.round(biomass.densityMatchedFrac * 100)
@@ -660,34 +693,51 @@ function FormulaPanel({ equation, setEquation, carbon, setCarbon, biomass }: {
             {opt.label}
           </button>
         ))}
-        <label className="flex items-center gap-1.5 ml-2 text-[12px] text-muted cursor-pointer select-none">
-          <input type="checkbox" checked={carbon} onChange={e => setCarbon(e.target.checked)} className="accent-coral" />
-          {t('biomass.addCarbon')}
-        </label>
+        {equation !== 'volume' && (
+          <label className="flex items-center gap-1.5 ml-2 text-[12px] text-muted cursor-pointer select-none">
+            <input type="checkbox" checked={carbon} onChange={e => setCarbon(e.target.checked)} className="accent-coral" />
+            {t('biomass.addCarbon')}
+          </label>
+        )}
       </div>
 
       {/* Active formula */}
       <div className="rounded-sm bg-[#0A0A10] border border-dim px-3.5 py-2.5 font-mono text-[12.5px] text-neutral">
         {activeFormula}
-        {carbon && <div className="text-coral/90 mt-1">{t('biomass.carbonF')}</div>}
+        {equation !== 'volume' && carbon && <div className="text-coral/90 mt-1">{t('biomass.carbonF')}</div>}
       </div>
 
       {/* Symbols / where the numbers come from */}
       <p className="text-[11px] uppercase tracking-widest text-muted mt-4 mb-2">{t('biomass.symbols')}</p>
       <ul className="flex flex-col gap-1.5 text-[12px] text-muted leading-relaxed">
         <li>{t('biomass.symD')}</li>
-        <li>
-          {t('biomass.symRho', { d: biomass.defaultDensity })}{' '}
-          <button
-            type="button"
-            onClick={downloadDensityCsv}
-            className="text-coral underline underline-offset-2 hover:text-coral/80 transition-colors"
-          >
-            {t('biomass.downloadDensity')}
-          </button>
-        </li>
-        {equation === 'chave' && <li>{t('biomass.symH')}</li>}
-        {carbon && <li>{t('biomass.symCarbon')}</li>}
+        {equation !== 'volume' && (
+          <li>
+            {t('biomass.symRho', { d: biomass.defaultDensity })}{' '}
+            <button
+              type="button"
+              onClick={downloadMetricCsv}
+              className="text-coral underline underline-offset-2 hover:text-coral/80 transition-colors"
+            >
+              {t('biomass.downloadDensity')}
+            </button>
+          </li>
+        )}
+        {equation === 'volume' && (
+          <li>
+            {t('biomass.symF', { f: biomass.defaultFormFactor })}{' '}
+            <button
+              type="button"
+              onClick={downloadMetricCsv}
+              className="text-coral underline underline-offset-2 hover:text-coral/80 transition-colors"
+            >
+              {t('biomass.downloadDensity')}
+            </button>
+          </li>
+        )}
+        {(equation === 'chave' || equation === 'volume') && <li>{t('biomass.symH')}</li>}
+        {equation === 'volume' && <li>{t('biomass.symVolume')}</li>}
+        {equation !== 'volume' && carbon && <li>{t('biomass.symCarbon')}</li>}
       </ul>
 
       {/* Provenance / provisional warning */}

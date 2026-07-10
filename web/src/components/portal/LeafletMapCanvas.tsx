@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { MapContainer, TileLayer, Tooltip, useMap, Marker } from 'react-leaflet'
 import { useRouter } from 'next/navigation'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import IUCN_DATA from '@/data/iucn.json'
 
 interface MapPoint {
@@ -109,7 +108,7 @@ export default function LeafletMapCanvas({ points, labels = [], color, height }:
               icon={icon}
               eventHandlers={{
                 click: () => {
-                  router.push(`/data?field=plot_id&op=equals&value=${encodeURIComponent(p.plotId)}`)
+                  router.push(`/maps?level=plot&code=${encodeURIComponent(p.plotId)}`)
                 },
               }}
             >

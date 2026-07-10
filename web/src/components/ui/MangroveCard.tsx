@@ -106,7 +106,7 @@ export function MangroveCard({ children, className = '', variant = 'green', seed
     : variant === 'brown'
       ? 'radial-gradient(120% 100% at 0% 0%, #33220f 0%, #271a0a 40%, #180f05 100%)'
       : variant === 'tintLen1'
-        ? 'radial-gradient(120% 100% at 0% 0%, rgba(74, 109, 8, 0.66) 0%, rgba(12, 96, 129, 0.4) 40%, rgba(101, 150, 10, 0.4) 100%)'
+        ? 'radial-gradient(120% 100% at 0% 0%, rgba(74, 109, 8, 0.66) 0%, rgba(12, 63, 129, 0.4) 40%, rgba(101, 150, 10, 0.4) 100%)'
         : variant === 'tintLen2'
           ? 'radial-gradient(120% 100% at 0% 0%, rgba(74, 109, 8, 0.66) 0%, rgba(192, 148, 91, 0.56) 40%, rgba(101, 150, 10, 0.4) 100%)'
           : 'radial-gradient(120% 100% at 0% 0%, #12362a 0%, #0d2c22 40%, #08201a 100%)'
