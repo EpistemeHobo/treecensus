@@ -424,9 +424,9 @@ export function FocusAreaStatistics() {
                   onClick={() => setLayer(l)}
                   className={
                     'px-3 py-2 text-[12px] font-medium transition-colors ' +
-                    (layer === l ? 'bg-black text-green-400' : 'text-muted hover:text-neutral hover:bg-ghost/40')
+                    (layer === l ? 'bg-black text-green-400' : 'text-muted hover:text-gray-800 hover:bg-ghost/40')
                   }
-                  style={layer === l ? { textShadow: '0 0 8px #ffffffff, 0 0 5px #dcfde8ff' } : undefined}
+                  style={layer === l ? { textShadow: '0 0 8px #e4ff69ff, 0 0 5px #89a34bff' } : undefined}
                 >
                   {t(`maps.layer.${l}` as never)}
                 </button>
@@ -447,9 +447,9 @@ export function FocusAreaStatistics() {
                       onClick={() => setMetric(m)}
                       className={
                         'px-3 py-2 text-[12px] font-medium transition-colors ' +
-                        (metric === m ? 'bg-black text-green-400' : 'text-muted hover:text-neutral hover:bg-ghost/40')
+                        (metric === m ? 'bg-black text-green-400' : 'text-muted hover:text-gray-800 hover:bg-ghost/40')
                       }
-                      style={metric === m ? { textShadow: '0 0 8px #ffffffff, 0 0 5px #dcfde8ff' } : undefined}
+                      style={metric === m ? { textShadow: '0 0 8px #e9ff69ff, 0 0 5px #84a34bff' } : undefined}
                     >
                       {t(`maps.metric.${m}` as never)}
                     </button>
@@ -598,8 +598,7 @@ export function FocusAreaStatistics() {
 function FullscreenWrap({ active, children }: { active: boolean; children: ReactNode }) {
   return (
     <div
-      className={active ? 'fixed inset-0 z-50 overflow-y-auto p-6' : ''}
-      style={active ? { background: 'var(--c-bg)' } : undefined}
+      className={active ? 'fullscreen-bg fixed inset-0 z-50 overflow-y-auto p-6' : ''}
     >
       {children}
     </div>

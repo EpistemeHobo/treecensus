@@ -59,12 +59,17 @@ export async function getObservationSchema(): Promise<ColumnMeta[]> {
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const { keys, densities } = metricLookupArrays()
+  const { keys, densities, formFactors } = metricLookupArrays()
   const query = `
     WITH density AS (
       SELECT k AS species, v AS density
       FROM UNNEST(@densKeys) AS k WITH OFFSET ko
       JOIN UNNEST(@densValues) AS v WITH OFFSET vo ON ko = vo
+    ),
+    form_factor AS (
+      SELECT k AS species, v AS ff
+      FROM UNNEST(@densKeys) AS k WITH OFFSET ko
+      JOIN UNNEST(@ffValues) AS v WITH OFFSET vo ON ko = vo
     ),
     raw_stats AS (
       SELECT
@@ -75,14 +80,17 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         submission_id,
         added_time,
         LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,
-        SAFE_CAST(gbh_cm AS FLOAT64) / ACOS(-1) AS dbh
+        SAFE_CAST(gbh_cm AS FLOAT64) / ACOS(-1) AS dbh,
+        SAFE_CAST(total_height_m AS FLOAT64) AS h
       FROM \`${OBSERVATIONS_FQN}\`
     ),
     biomass AS (
       SELECT
-        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46) AS komi_agb
+        0.251 * COALESCE(d.density, @defaultDensity) * POW(s.dbh, 2.46) AS komi_agb,
+        IF(s.h > 0, COALESCE(f.ff, @defaultFF) * (ACOS(-1) * POW(s.dbh / 100, 2) / 4) * s.h, 0) AS wood_volume
       FROM raw_stats s
       LEFT JOIN density d ON d.species = s.species_key
+      LEFT JOIN form_factor f ON f.species = s.species_key
       WHERE s.observation_type = 'tree_stem' AND s.dbh IS NOT NULL AND s.dbh > 0
     )
     SELECT
@@ -91,6 +99,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       COUNT(DISTINCT species_id)                                               AS totalSpecies,
       COUNT(DISTINCT submission_id)                                            AS totalSubmissions,
       (SELECT SUM(komi_agb) FROM biomass)                                      AS totalBiomass,
+      (SELECT SUM(wood_volume) FROM biomass)                                    AS totalVolume,
       MAX(NULLIF(added_time, ''))                                              AS lastSyncAt
     FROM raw_stats
   `
@@ -99,7 +108,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     params: {
       densKeys: keys,
       densValues: densities,
+      ffValues: formFactors,
       defaultDensity: WOOD_MATRIC.defaultDensity,
+      defaultFF: WOOD_MATRIC.defaultFormFactor,
     },
   })
   const r = (rows[0] ?? {}) as Record<string, unknown>
@@ -109,6 +120,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalSpecies: Number(r.totalSpecies ?? 0),
     totalSubmissions: Number(r.totalSubmissions ?? 0),
     totalBiomass: Number(r.totalBiomass ?? 0),
+    totalVolume: Number(r.totalVolume ?? 0),
     lastSyncAt: (r.lastSyncAt as string) ?? '—',
   }
 }
@@ -184,18 +196,45 @@ export async function getObservationTypeCounts(): Promise<{ type: string; count:
 }
 
 /** Row count per iucn_code — for dashboard conservation status card. */
-export async function getIucnStatusCounts(): Promise<{ code: string; count: number }[]> {
+export async function getIucnStatusCounts(): Promise<{ code: string; count: number; species: { scientific_name: string; thai_name: string }[] }[]> {
   const query = `
-    SELECT iucn_code AS code, COUNT(DISTINCT tree_id) AS count
-    FROM \`${OBSERVATIONS_FQN}\`
-    WHERE NULLIF(iucn_code, '') IS NOT NULL
-    GROUP BY iucn_code
-    ORDER BY count DESC
+    WITH species_by_iucn AS (
+      SELECT DISTINCT
+        iucn_code AS code,
+        COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''), '(unspecified)') AS scientific_name,
+        COALESCE(NULLIF(thai_name, ''), '(ไม่มีชื่อไทย)') AS thai_name
+      FROM \`${OBSERVATIONS_FQN}\`
+      WHERE NULLIF(iucn_code, '') IS NOT NULL
+    ),
+    species_grouped AS (
+      SELECT
+        code,
+        ARRAY_AGG(STRUCT(scientific_name, thai_name)) AS species
+      FROM species_by_iucn
+      GROUP BY code
+    ),
+    counts AS (
+      SELECT iucn_code AS code, COUNT(DISTINCT tree_id) AS count
+      FROM \`${OBSERVATIONS_FQN}\`
+      WHERE NULLIF(iucn_code, '') IS NOT NULL
+      GROUP BY iucn_code
+    )
+    SELECT
+      c.code,
+      c.count,
+      g.species
+    FROM counts c
+    LEFT JOIN species_grouped g ON c.code = g.code
+    ORDER BY c.count DESC
   `
   const [rows] = await bq.query({ query })
-  return (rows as { code: string; count: number | string }[]).map(r => ({
+  return (rows as any[]).map(r => ({
     code: r.code,
     count: Number(r.count),
+    species: (r.species || []).map((s: any) => ({
+      scientific_name: String(s.scientific_name),
+      thai_name: String(s.thai_name),
+    })),
   }))
 }
 
@@ -659,12 +698,19 @@ export async function getObservationInsights(opts: {
   filters?: ObservationFilter[]
   dateFrom?: string
   dateTo?: string
+  lang?: string
 }): Promise<ObservationInsights> {
   const { where, params } = await buildObservationWhere(opts)
   const FROM = `\`${OBSERVATIONS_FQN}\` WHERE ${where}`
 
-  // Reusable coalesced species label (normalized → scientific → thai → raw).
-  const SPECIES_LABEL = `COALESCE(
+  // Reusable coalesced species label. If lang is 'th', prefer thai_name.
+  const SPECIES_LABEL = opts.lang === 'th' ? `COALESCE(
+    NULLIF(thai_name, ''),
+    NULLIF(normalized_species_name, ''),
+    NULLIF(scientific_name, ''),
+    NULLIF(species_raw, ''),
+    '(unspecified)'
+  )` : `COALESCE(
     NULLIF(normalized_species_name, ''),
     NULLIF(scientific_name, ''),
     NULLIF(thai_name, ''),
@@ -856,12 +902,27 @@ export async function getObservationBiomass(opts: {
   filters?: ObservationFilter[]
   dateFrom?: string
   dateTo?: string
+  lang?: string
 }): Promise<BiomassResult> {
   const { where, params } = await buildObservationWhere(opts)
 
+  const SPECIES_LABEL = opts.lang === 'th' ? `COALESCE(
+    NULLIF(thai_name, ''),
+    NULLIF(normalized_species_name, ''),
+    NULLIF(scientific_name, ''),
+    NULLIF(species_raw, ''),
+    '(unspecified)'
+  )` : `COALESCE(
+    NULLIF(normalized_species_name, ''),
+    NULLIF(scientific_name, ''),
+    NULLIF(thai_name, ''),
+    NULLIF(species_raw, ''),
+    '(unspecified)'
+  )`
+
   const query = `
     SELECT
-      COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''), NULLIF(thai_name, ''), NULLIF(species_raw, ''), '(unspecified)') AS species_label,
+      ${SPECIES_LABEL} AS species_label,
       COALESCE(NULLIF(project_no_raw, ''), '(blank)') AS project_label,
       COALESCE(NULLIF(plot_no_raw, ''), NULLIF(plot_id, ''), '(blank)') AS plot_label,
       LOWER(COALESCE(NULLIF(normalized_species_name, ''), NULLIF(scientific_name, ''))) AS species_key,

@@ -46,7 +46,12 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body:not(.auth-page)::before {
+.fullscreen-bg {
+  background-color: var(--c-bg);
+}
+
+body:not(.auth-page)::before,
+.fullscreen-bg::before {
   content: "";
   position: fixed;
   inset: 0;

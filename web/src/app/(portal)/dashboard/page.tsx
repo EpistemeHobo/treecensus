@@ -12,6 +12,7 @@ const ZERO_STATS: DashboardStats = {
   totalSpecies: 0,
   totalSubmissions: 0,
   totalBiomass: 0,
+  totalVolume: 0,
   lastSyncAt: '—',
 }
 
@@ -19,7 +20,7 @@ export default async function DashboardPage() {
   let stats = ZERO_STATS
   let typeCounts: { type: string; count: number }[] = []
   let plots: PlotLocation[] = []
-  let iucnCounts: { code: string; count: number }[] = []
+  let iucnCounts: { code: string; count: number; species: { scientific_name: string; thai_name: string }[] }[] = []
   let activityStats = {
     latestAccessEmail: '—',
     latestAccessTime: '—',

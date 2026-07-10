@@ -10,7 +10,7 @@ interface OptionItem {
 interface StatCardProps {
   label: string
   value: string | number
-  sub?: string
+  sub?: ReactNode
   icon?: ReactNode
   accent?: 'coral' | 'violet' | 'neutral'
   seed?: number

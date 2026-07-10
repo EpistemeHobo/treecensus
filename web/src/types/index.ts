@@ -75,6 +75,7 @@ export interface DashboardStats {
   totalSubmissions: number
   lastSyncAt: string
   totalBiomass: number
+  totalVolume?: number
 }
 
 /** Per-plot GPS centroid + counts — feeds the dashboard firefly maps.

@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       filters: Array.isArray(body.filters) ? body.filters : [],
       dateFrom: typeof body.dateFrom === 'string' && body.dateFrom ? body.dateFrom : undefined,
       dateTo: typeof body.dateTo === 'string' && body.dateTo ? body.dateTo : undefined,
+      lang: typeof body.lang === 'string' ? body.lang : undefined,
     })
     return NextResponse.json({ data: insights })
   } catch (err) {

@@ -51,7 +51,7 @@ interface DashboardContentProps {
   activityStats: ActivityStats
   plots: PlotLocation[]
   typeCounts: { type: string; count: number }[]
-  iucnCounts: { code: string; count: number }[]
+  iucnCounts: { code: string; count: number; species: { scientific_name: string; thai_name: string }[] }[]
   connected: boolean
 }
 
@@ -120,7 +120,12 @@ function CoreStatsRow({ stats, onPlotsIconClick, plots, typeCounts }: { stats: D
       <StatCard
         label={t('dash.biomass')}
         value={`${Math.round(stats.totalBiomass).toLocaleString()} kg`}
-        sub={t('dash.biomassSub')}
+        sub={
+          <span className="text-[13px] font-normal text-muted">
+            {lang === 'th' ? 'ปริมาตรไม้' : 'Wood Volume'}:{' '}
+            {(stats.totalVolume ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³
+          </span>
+        }
         icon={<Scale size={16} />}
         onIconClick={() => router.push('/data?insights=biomass')}
       />
@@ -175,8 +180,9 @@ function ActivityRailCard({ activityStats, submissions }: { activityStats: Activ
 
 
 
-function ConservationStatusCard({ iucnCounts }: { iucnCounts: { code: string; count: number }[] }) {
-  const { t } = useI18n()
+function ConservationStatusCard({ iucnCounts }: { iucnCounts: { code: string; count: number; species: { scientific_name: string; thai_name: string }[] }[] }) {
+  const { t, lang } = useI18n()
+  const router = useRouter()
   const total = iucnCounts.reduce((sum, item) => sum + item.count, 0)
   const statusMap = new Map(IUCN_DATA.map(d => [d.code.toUpperCase(), d]))
   
@@ -209,12 +215,37 @@ function ConservationStatusCard({ iucnCounts }: { iucnCounts: { code: string; co
             const codeUpper = item.code.toUpperCase()
             const meta = statusMap.get(codeUpper)
             const color = meta?.color ?? '#757575'
+            
+            const tooltipText = codeUpper === 'LC'
+              ? (lang === 'th'
+                  ? `${item.species?.length ?? 0} ชนิดพันธุ์`
+                  : `${item.species?.length ?? 0} species`)
+              : (item.species || []).map(s => lang === 'th' ? s.thai_name : s.scientific_name).join('\n')
+
+            const isLc = codeUpper === 'LC'
+            const handleClick = () => {
+              if (!isLc) {
+                router.push(`/data?field=iucn_code&op=equals&value=${codeUpper}`)
+              }
+            }
+
             const labelNode = meta ? (
-              <span>
+              <span 
+                title={tooltipText} 
+                onClick={handleClick}
+                className={isLc ? "cursor-help" : "cursor-pointer hover:underline text-neutral"}
+              >
                 {meta.status} <span style={{ color }} className="font-semibold">({meta.code})</span>
               </span>
             ) : (
-              <span style={{ color }} className="font-semibold">{item.code}</span>
+              <span 
+                title={tooltipText} 
+                onClick={handleClick}
+                style={{ color }} 
+                className={isLc ? "font-semibold cursor-help" : "font-semibold cursor-pointer hover:underline"}
+              >
+                {item.code}
+              </span>
             )
 
             return (
@@ -268,8 +299,7 @@ function useEscape(active: boolean, onClose: () => void) {
 function FullscreenWrap({ active, children }: { active: boolean; children: ReactNode }) {
   return (
     <div
-      className={active ? 'fixed inset-0 z-50 overflow-y-auto p-6' : ''}
-      style={active ? { background: 'var(--c-bg)' } : undefined}
+      className={active ? 'fullscreen-bg fixed inset-0 z-50 overflow-y-auto p-6' : ''}
     >
       {children}
     </div>

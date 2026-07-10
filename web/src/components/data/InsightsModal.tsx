@@ -384,6 +384,7 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
         filters: query.filters.filter(f => f.field),
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
+        lang,
       }),
     })
       .then(r => r.json())
@@ -396,7 +397,7 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- error text uses the language active at load time
-  }, [open, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo])
+  }, [open, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo, lang])
 
   // Biomass is fetched lazily the first time the tab is opened for this query.
   useEffect(() => {
@@ -411,6 +412,7 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
         filters: query.filters.filter(f => f.field),
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
+        lang,
       }),
     })
       .then(r => r.json())
@@ -423,7 +425,7 @@ export function InsightsModal({ open, onClose, query, defaultTab = 'biomass' }: 
       .finally(() => { if (!cancelled) setBmLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo])
+  }, [open, tab, query.search, JSON.stringify(query.filters), query.dateFrom, query.dateTo, lang])
 
   // Pick the active equation's per-group sum, scaled by the carbon fraction.
   const scale = (equation !== 'volume' && carbon) ? CARBON_FRACTION : 1
